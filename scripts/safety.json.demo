@@ -1,0 +1,10 @@
+{
+  "block_threshold_usd": 1.00,
+  "daily_limit_usd": 5.00,
+  "denied_selectors": [
+    "0x23b872dd",
+    "0x42842e0e",
+    "0xa9059cbb",
+    "0x095ea7b3"
+  ]
+}
