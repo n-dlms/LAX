@@ -23,6 +23,14 @@ export const CONFIG = {
   USDC_USD_AGGREGATOR: '0xf52D010c7d4ecBfda92c2509900593CE34535D86' as const,
   WETH_USD_AGGREGATOR: '0x9dA00D23465282005DB222a441a663eE7B9dfCc8' as const,
 
+  // Base Sepolia (84532) — real-testnet submission path, see docs/zero-cost-testnet-plan.md.
+  // Addresses from the official Aave address book (AaveV3BaseSepolia).
+  // NOTE: the USDC here is Aave's own testnet token, NOT Circle USDC.
+  SEPOLIA_CHAIN_ENTRY_ID: 'tqwfqleepzicpldtpomcf' as const,
+  SEPOLIA_AAVE_POOL: '0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27' as const,
+  SEPOLIA_USDC: '0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f' as const,
+  SEPOLIA_WETH: '0x4200000000000000000000000000000000000006' as const,
+
   REPAY_MODE: 2,
 
   // Gas sponsorship tag for the current hackathon: KeeperHub — The Agent Economy
@@ -71,6 +79,9 @@ export function validateConfig(): string[] {
     WETH: CONFIG.WETH,
     USDC_USD_AGGREGATOR: CONFIG.USDC_USD_AGGREGATOR,
     WETH_USD_AGGREGATOR: CONFIG.WETH_USD_AGGREGATOR,
+    SEPOLIA_AAVE_POOL: CONFIG.SEPOLIA_AAVE_POOL,
+    SEPOLIA_USDC: CONFIG.SEPOLIA_USDC,
+    SEPOLIA_WETH: CONFIG.SEPOLIA_WETH,
   })) {
     if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
       errors.push(`Invalid ${name}: ${addr}`)

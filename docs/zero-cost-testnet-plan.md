@@ -81,3 +81,36 @@ Public RPC (free): `https://sepolia.base.org` (official, per docs.base.org).
    supply→borrow route above makes it irrelevant.
 3. Sponsorship toggle location/eligibility quirks — validate with a trivial sponsored transfer.
 4. CDP faucet "USDC" identity (irrelevant for the recommended path — repay uses Aave's USDC).
+
+---
+
+## Live findings (checked 2026-09-01, local machine)
+
+| Check | Result |
+|---|---|
+| `GET /api/chains` | ⚠️ **Public endpoint** (200 without auth) — not proof of key validity |
+| API key in `.env` (`kh_K2...`) | **INVALID / REVOKED** — 401 on `GET /api/workflows`, `kh auth status`, `kh billing status`. → create a new key at app.keeperhub.com (free, manual step) |
+| Base Sepolia (84532) enabled | ✅ `id=tqwfqleepzicpldtpomcf`; Ethereum Sepolia (11155111) and Arbitrum Sepolia (421614) also enabled as backups |
+| kh CLI | Was 0.10.0 (below minimum 0.11.1) → updated to **0.15.0** |
+| Agentic wallet (`~/.keeperhub/wallet.json`) | ✅ alive: `0x8Bb787...C21C`, subOrg `514bb660-...` (matches `src/config.ts`) |
+| Old workflow `7gdt0ty7zk1orq1j4wc74` | 404 — gone; fresh deploy required |
+| `kh w info` exec-format-error | kh's npx shim hits this machine's native-binary issue; workaround: `node node_modules/@keeperhub/wallet/bin/keeperhub-wallet.js info` (package ships JS bins, v0.1.15) |
+| New CLI behavior | `kh workflow create` makes workflows **DISABLED** — enable via PATCH `{"enabled": true}` (handled in `scripts/deploy-workflow-sepolia.sh`); direct ops via `kh execute contract-call --chain 84532 ...` |
+| Cloudflare bot rule | Blocks python-urllib on app.keeperhub.com (403); curl works — pipe curl output to python scripts |
+
+### Deployment tooling added
+- `scripts/deploy-workflow-sepolia.sh` — creates/enables the `lax-liquidation-armor-sepolia`
+  workflow (trigger → read HF → approve → repay → verify) on 84532 with the Aave address-book
+  addresses. Borrower defaults to the agentic wallet (it holds the self-funded position).
+  Optional tag via `LAX_SPONSORSHIP_TAG` (tags retired → skipped by default).
+- `scripts/list-chains.py` — chain-table formatter (curl | python3).
+- Base Sepolia constants in `src/config.ts` (`SEPOLIA_AAVE_POOL`, `SEPOLIA_USDC`, `SEPOLIA_WETH`).
+
+### Remaining manual steps (in order)
+1. Create a fresh API key at app.keeperhub.com → update `.env`
+2. Settings → Billing → enable gas sponsorship (free on testnet)
+3. Claim faucet ETH (Coinbase CDP) for the wallet `0x8Bb787...C21C`
+4. Fund position via `kh execute contract-call --chain 84532`: wrap → `supply(WETH)` → `borrow(USDC)`
+5. `./scripts/deploy-workflow-sepolia.sh` → note `LAX_WORKFLOW_ID_SEPOLIA`
+6. Fire the webhook with `repay_amount_usdc` / `repay_amount_human` → capture the tx link
+
