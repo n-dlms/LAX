@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/schemas/opencode.json",
+  "mcp": {
+    "keeperhub": {
+      "type": "remote",
+      "url": "https://app.keeperhub.com/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer {env:KEEPERHUB_API_KEY}"
+      }
+    },
+    "lax-liquidation-armor": {
+      "type": "remote",
+      "url": "https://app.keeperhub.com/mcp/w/lax-liquidation-armor",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer {env:KEEPERHUB_API_KEY}"
+      }
+    }
+  }
+}

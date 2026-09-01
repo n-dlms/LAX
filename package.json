@@ -1,0 +1,23 @@
+{
+  "name": "lax",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proactive Aave V3 liquidation defender on KeeperHub",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "bash scripts/lax",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "@keeperhub/wallet": "^0.1.15",
+    "ethers": "^6.17.0",
+    "tsx": "^4.19.0"
+  }
+}
