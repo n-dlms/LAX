@@ -106,11 +106,27 @@ Public RPC (free): `https://sepolia.base.org` (official, per docs.base.org).
 - `scripts/list-chains.py` — chain-table formatter (curl | python3).
 - Base Sepolia constants in `src/config.ts` (`SEPOLIA_AAVE_POOL`, `SEPOLIA_USDC`, `SEPOLIA_WETH`).
 
+## ✅ DEPLOYED (2026-09-01)
+
+- **Workflow `lax-liquidation-armor-sepolia` is live and enabled**:
+  ID `l4pbmt6jdek9c3lwt0y3b` (org `141337c2-836f-4adb-a3c2-bce160b7f015`)
+  → `https://app.keeperhub.com/api/workflows/l4pbmt6jdek9c3lwt0y3b/webhook` (webhook trigger)
+- Read path validated through `kh read --chain 84532`:
+  `getUserAccountData` on `0x8bAB...aE27` returns live data (zeros + HF=max-uint sentinel for
+  the empty position) — **Aave V3 Base Sepolia Pool address confirmed correct**.
+- Auth notes learned live:
+  - `kh` CLI stores its **own** credential — `printf '%s' "$KEY" | kh auth login --with-token`
+    (does not read `.env`). Fresh key must be logged-in per machine.
+  - New key 401'd for ~a minute right after creation (step-up/propagation) before turning 200.
+  - ⚠️ **Webhook triggers accept only `wfb_` user-scoped keys** — `kh_` org keys are rejected
+    with 401 on `POST /api/workflows/{id}/webhook`. Create a user key in the web app for the
+    hf-listener/webhook path (docs: API → Authentication).
+
 ### Remaining manual steps (in order)
-1. Create a fresh API key at app.keeperhub.com → update `.env`
-2. Settings → Billing → enable gas sponsorship (free on testnet)
-3. Claim faucet ETH (Coinbase CDP) for the wallet `0x8Bb787...C21C`
-4. Fund position via `kh execute contract-call --chain 84532`: wrap → `supply(WETH)` → `borrow(USDC)`
-5. `./scripts/deploy-workflow-sepolia.sh` → note `LAX_WORKFLOW_ID_SEPOLIA`
+1. ~~Create a fresh API key~~ ✅ done — key in `.env`, CLI logged in
+2. Enable gas sponsorship: Settings → Billing in the web app (free on testnet)
+3. Claim faucet ETH (Coinbase CDP) for the wallet `0x8Bb787...C21C` — currently **0 ETH**
+4. Create a `wfb_` user key (web app) for webhook triggering → use in hf-listener / curl
+5. Fund position via `kh execute contract-call --chain 84532`: wrap → `supply(WETH)` → `borrow(USDC)`
 6. Fire the webhook with `repay_amount_usdc` / `repay_amount_human` → capture the tx link
 
