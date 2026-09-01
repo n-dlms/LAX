@@ -16,10 +16,6 @@ wallet_path = os.path.expanduser("~/.keeperhub/wallet.json")
 default_borrower = json.load(open(wallet_path))["walletAddress"]
 BORROWER = os.environ.get("LAX_BORROWER_ADDRESS", default_borrower)
 
-REPAY_ABI = [
-    "function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) returns (uint256)"
-]
-
 nodes = [
     {
         "id": "trigger",
@@ -55,15 +51,17 @@ nodes = [
                     {"mode": "custom", "customToken": {"address": USDC, "symbol": "USDC"}}
                 ),
                 "spenderAddress": AAVE_POOL,
-                "amount": "{Trigger.body.repay_amount_human}",
+                "amount": "0.3",
             },
         },
     },
     {
-        # aave-v3/repay rejects template refs in its uint256 amount at save-time
-        # (422 INVALID_ACTION_CONFIG), so repay via raw contract call instead —
-        # functionArgs templates are officially supported and resolve before JSON.parse.
-        # The webhook body must send repay_amount_usdc as a JSON NUMBER.
+        # Dynamic ({{...}}) amounts for aave-v3/repay are rejected at save-time
+        # (uint256) and never resolve inside web3/write-contract functionArgs arrays
+        # at runtime — so a static amount is used for the submission tx. HF reads stay
+        # dynamic. Detected platform gaps (bounty candidates):
+        #   1. aave-v3/repay uint256 amount rejects {{trigger.data.X}} templates on save.
+        #   2. web3/write-contract functionArgs array elements don't resolve templates.
         "id": "repay",
         "type": "action",
         "position": {"x": 750, "y": 50},
@@ -71,14 +69,14 @@ nodes = [
             "type": "action",
             "label": "Repay",
             "config": {
-                "actionType": "web3/write-contract",
+                "actionType": "aave-v3/repay",
                 "network": NETWORK,
-                "contractAddress": AAVE_POOL,
-                "abi": json.dumps(REPAY_ABI),
-                "abiFunction": "repay",
-                # functionArgs must be a real JSON array (API rejects stringified form);
-                # the reference element resolves at run time to the webhook body value.
-                "functionArgs": [USDC, "{Trigger.body.repay_amount_usdc}", 2, BORROWER],
+                "asset": USDC,
+                # 300000 base units = 0.3 USDC (6 decimals). Static — the platform can't
+                # accept dynamic uint256 refs today. The approve_usdc node covers allowance.
+                "amount": "300000",
+                "interestRateMode": "2",
+                "onBehalfOf": BORROWER,
             },
         },
     },
