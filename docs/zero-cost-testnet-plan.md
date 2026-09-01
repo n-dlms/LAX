@@ -125,8 +125,26 @@ Public RPC (free): `https://sepolia.base.org` (official, per docs.base.org).
 ### Remaining manual steps (in order)
 1. ~~Create a fresh API key~~ ✅ done — key in `.env`, CLI logged in
 2. Enable gas sponsorship: Settings → Billing in the web app (free on testnet)
-3. Claim faucet ETH (Coinbase CDP) for the wallet `0x8Bb787...C21C` — currently **0 ETH**
-4. Create a `wfb_` user key (web app) for webhook triggering → use in hf-listener / curl
-5. Fund position via `kh execute contract-call --chain 84532`: wrap → `supply(WETH)` → `borrow(USDC)`
-6. Fire the webhook with `repay_amount_usdc` / `repay_amount_human` → capture the tx link
+3. Claim faucet ETH → **send it to `0x26833b05be49036d4de306b1f4fba7713cc84de5`** — that is
+   the org's on-chain execution wallet (confirmed via `kh wallet balance`; NOT the Turnkey
+   suborg EOA `0x8Bb7...` from `~/.keeperhub/wallet.json`, which is identity-only).
+   Working faucet: https://faucet.zalalena.com/base (public address + captcha only)
+4. ~~Create a `wfb_` user key~~ ✅ done — `KEEPERHUB_WEBHOOK_KEY` in `.env`; webhook verified
+   end-to-end (trigger → read HF both green; approve blocks only on gas)
+5. Fund position via `kh execute contract-call --chain 84532` (executes from `0x2683...`):
+   wrap ETH → WETH → `supply(WETH)` → `borrow(USDC)` — needs the faucet ETH first
+6. Fire the webhook with `repay_amount_usdc` as a JSON **number** + `repay_amount_human`
+   string → capture the tx hash from `kh run status` / `transactionHashes`
+
+### Live-learned platform gotchas (July → Sep 2026 drift)
+- **Templating syntax changed**: `{{trigger.body.X}}` is dead. Node references are now
+  label-based: `{Trigger.body.X}` — nodes need explicit `label` fields for refs to resolve.
+- **`kh workflow create` accepts configs that `PATCH` update rejects** (create skips
+  validation; update runs INVALID_ACTION_CONFIG checks). Always PATCH after create to
+  validate, and never silence update failures.
+- **`aave-v3/repay` amount (uint256) rejects template references at save-time** — use
+  `web3/write-contract` with `abi` (stringified), `abiFunction`, and `functionArgs` as a
+  **real JSON array** (not a stringified one) containing the reference as an element.
+- **`kh wallet balance` reveals the true executor address** (per-org creator wallet);
+  `wallet.json`'s address is not what signs/broadcasts on the platform.
 

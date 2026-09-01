@@ -35,89 +35,12 @@ echo "Pool:    $AAVE_POOL"
 echo "USDC:    $USDC"
 echo "Borrower: $BORROWER"
 
-NODES=$(python3 -c "
-import json
-
-network = '$NETWORK'
-pool = '$AAVE_POOL'
-usdc = '$USDC'
-borrower = '$BORROWER'
-
-nodes = [
-  {
-    'id': 'trigger', 'type': 'trigger',
-    'position': {'x': 0, 'y': 50},
-    'data': {'type': 'trigger', 'config': {'triggerType': 'Webhook'}}
-  },
-  {
-    'id': 'read_hf', 'type': 'action',
-    'position': {'x': 250, 'y': 50},
-    'data': {
-      'type': 'action',
-      'config': {
-        'actionType': 'aave-v3/get-user-account-data',
-        'network': network,
-        'user': borrower
-      }
-    }
-  },
-  {
-    'id': 'approve_usdc', 'type': 'action',
-    'position': {'x': 500, 'y': 50},
-    'data': {
-      'type': 'action',
-      'config': {
-        'actionType': 'web3/approve-token',
-        'network': network,
-        'tokenConfig': json.dumps({
-          'mode': 'custom',
-          'customToken': {'address': usdc, 'symbol': 'USDC'}
-        }),
-        'spenderAddress': pool,
-        'amount': '{{trigger.body.repay_amount_human}}'
-      }
-    }
-  },
-  {
-    'id': 'repay', 'type': 'action',
-    'position': {'x': 750, 'y': 50},
-    'data': {
-      'type': 'action',
-      'config': {
-        'actionType': 'aave-v3/repay',
-        'network': network,
-        'asset': usdc,
-        'amount': '{{trigger.body.repay_amount_usdc}}',
-        'interestRateMode': '2',
-        'onBehalfOf': borrower
-      }
-    }
-  },
-  {
-    'id': 'verify_hf', 'type': 'action',
-    'position': {'x': 1000, 'y': 50},
-    'data': {
-      'type': 'action',
-      'config': {
-        'actionType': 'aave-v3/get-user-account-data',
-        'network': network,
-        'user': borrower
-      }
-    }
-  }
-]
-
-edges = [
-  {'id': 'e1', 'source': 'trigger', 'target': 'read_hf'},
-  {'id': 'e2', 'source': 'read_hf', 'target': 'approve_usdc'},
-  {'id': 'e3', 'source': 'approve_usdc', 'target': 'repay'},
-  {'id': 'e4', 'source': 'repay', 'target': 'verify_hf'}
-]
-
-print(json.dumps({'nodes': nodes, 'edges': edges}))
-")
-
-echo "$NODES" > /tmp/lax-workflow-deploy-sepolia.json
+# Node JSON is built by scripts/build-sepolia-nodes.py (standalone file —
+# avoids bash-quoting corruption of template references inside inline heredocs).
+python3 "$SCRIPT_DIR/build-sepolia-nodes.py" > /tmp/lax-workflow-deploy-sepolia.json
+python3 -m json.tool /tmp/lax-workflow-deploy-sepolia.json > /dev/null || {
+  echo 'FATAL: generated nodes JSON is invalid'; exit 1
+}
 
 if [ -z "$WORKFLOW_ID" ]; then
   echo "--- Creating new workflow ---"
@@ -129,7 +52,9 @@ if [ -z "$WORKFLOW_ID" ]; then
   echo "Created workflow ID: $WORKFLOW_ID"
 else
   echo "--- Updating existing workflow $WORKFLOW_ID ---"
-  kh workflow update "$WORKFLOW_ID" --nodes-file /tmp/lax-workflow-deploy-sepolia.json > /dev/null 2>&1
+  UPDATE_RESULT=$(kh workflow update "$WORKFLOW_ID" --nodes-file /tmp/lax-workflow-deploy-sepolia.json 2>&1) || {
+    echo "FATAL: workflow update failed:"; echo "$UPDATE_RESULT"; exit 1
+  }
   echo "Updated workflow $WORKFLOW_ID"
 fi
 
