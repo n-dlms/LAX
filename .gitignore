@@ -1,0 +1,28 @@
+# LAX
+node_modules/
+dist/
+out/
+cache/
+.env
+.env.*.local
+wallet.json
+wallet.keystore
+
+# KeeperHub artifacts (per-wallet metadata, no private keys per ADR-003)
+~/.keeperhub/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Demo recordings
+*.mp4
+*.mov
+
+# Anvil fork state
+fork-state.json
+/tmp/lax-anvil-state/
