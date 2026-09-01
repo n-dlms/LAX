@@ -10,16 +10,19 @@ const TOKEN = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 const POOL = '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5'
 
 describe('shell integration boundaries', () => {
-  it('detects non-local RPC URL', () => {
+  it('attempts connection for non-local RPC URL (no fork ceiling)', () => {
+    // The pre-validation gate is gone; a valid RPC is actually tried (this may
+    // succeed if the endpoint is reachable). We only assert it is not short-circuited.
     const result = simulateApprove(TOKEN, POOL, 1000n, 'https://mainnet.base.org', WALLET)
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).not.toBe('INVALID_RPC_URL')
+    expect(result.revertReason).not.toBe('FORK_REQUIRED')
+    expect(['APPROVE', 'REPAY', 'FULL']).toContain(result.stage)
   })
 
-  it('detects https URL in simulateFullMitigation', () => {
+  it('attempts connection for https URL in simulateFullMitigation', () => {
     const result = simulateFullMitigation(BORROWER, TOKEN, 1000n, 'https://api.example.com', WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).not.toBe('INVALID_RPC_URL')
   })
 
   it('detects non-local IP in simulation context', () => {
@@ -40,7 +43,7 @@ describe('shell integration boundaries', () => {
   it('handles empty string as RPC URL', () => {
     const result = simulateApprove(TOKEN, POOL, 1000n, '', WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 
   it('handles port-only localhost URL', () => {
@@ -85,19 +88,20 @@ describe('shell integration boundaries', () => {
   it('rejects 127.0.0.1:18545 with no protocol', () => {
     const result = simulateApprove(TOKEN, POOL, 1000n, '127.0.0.1:18545', WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 
   it('rejects HTTP://127.0.0.1:18545 (uppercase)', () => {
     const result = simulateApprove(TOKEN, POOL, 1000n, 'HTTP://127.0.0.1:18545', WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 
-  it('rejects http://192.168.1.1:18545 (private IP)', () => {
+  it('attempts connection for http://192.168.1.1:18545 (private IP, now allowed)', () => {
     const result = simulateApprove(TOKEN, POOL, 1000n, 'http://192.168.1.1:18545', WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).not.toBe('INVALID_RPC_URL')
+    expect(result.revertReason).not.toBe('FORK_REQUIRED')
   })
 
   // --- Critique-specific RPC boundary (2 tests) ---

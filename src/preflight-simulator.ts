@@ -48,8 +48,8 @@ function runCastCall(args: string[], rpcUrl: string, from?: string, timeoutMs = 
   }
 }
 
-function isLocalFork(rpcUrl: string): boolean {
-  return rpcUrl.startsWith('http://127.0.0.1') || rpcUrl.startsWith('http://localhost')
+function isValidRpc(url: string): boolean {
+  return /^https?:\/\/.+/.test(url.trim())
 }
 
 export function simulateApprove(
@@ -62,11 +62,11 @@ export function simulateApprove(
   const effectiveFrom = from ?? CONFIG.WALLET_ADDRESS
   const start = Date.now()
 
-  if (!isLocalFork(rpcUrl)) {
+  if (!isValidRpc(rpcUrl)) {
     return {
       success: false,
       stage: 'APPROVE',
-      revertReason: 'FORK_REQUIRED',
+      revertReason: 'INVALID_RPC_URL',
       durationMs: 0,
     }
   }
@@ -108,11 +108,11 @@ export function simulateRepay(
   const effectiveFrom = from ?? CONFIG.WALLET_ADDRESS
   const start = Date.now()
 
-  if (!isLocalFork(rpcUrl)) {
+  if (!isValidRpc(rpcUrl)) {
     return {
       success: false,
       stage: 'REPAY',
-      revertReason: 'FORK_REQUIRED',
+      revertReason: 'INVALID_RPC_URL',
       durationMs: 0,
     }
   }
@@ -154,11 +154,11 @@ export function simulateFullMitigation(
   const poolAddress = CONFIG.AAVE_POOL
   const rateMode: 1 | 2 = 2 as const
 
-  if (!isLocalFork(rpcUrl)) {
+  if (!isValidRpc(rpcUrl)) {
     return {
       success: false,
       stage: 'FULL',
-      revertReason: 'FORK_REQUIRED',
+      revertReason: 'INVALID_RPC_URL',
       durationMs: 0,
     }
   }

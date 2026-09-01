@@ -58,11 +58,20 @@ describe('simulateApprove', () => {
     expect(call).toContain('--from 0x8Bb7870242e75132Fd62265cA8ABF771d49C821C')
   })
 
-  it('returns FORK_REQUIRED for non-local RPC', () => {
+  it('simulates against remote RPCs (no local-fork gate)', () => {
+    mockExecSync.mockReturnValueOnce(successResult(''))
+
     const result = simulateApprove(TOKEN, POOL, 1000000n, 'https://mainnet.base.org', WALLET)
 
+    expect(result.success).toBe(true)
+    expect(mockExecSync).toHaveBeenCalledOnce()
+  })
+
+  it('returns INVALID_RPC_URL for malformed RPC strings', () => {
+    const result = simulateApprove(TOKEN, POOL, 1000000n, '', WALLET)
+
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 
   it('parses revert reason from stderr', () => {
@@ -140,11 +149,13 @@ describe('simulateRepay', () => {
     expect(call).toContain(BORROWER)
   })
 
-  it('returns FORK_REQUIRED for non-local RPC', () => {
+  it('simulates repay against remote RPCs (no local-fork gate)', () => {
+    mockExecSync.mockReturnValueOnce(successResult(''))
+
     const result = simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, 'https://mainnet.base.org', WALLET)
 
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.success).toBe(true)
+    expect(mockExecSync).toHaveBeenCalledOnce()
   })
 
   it('handles repay revert', () => {
@@ -196,12 +207,14 @@ describe('simulateFullMitigation', () => {
     expect(mockExecSync).toHaveBeenCalledTimes(2)
   })
 
-  it('returns FORK_REQUIRED for non-local RPC', () => {
+  it('simulates full mitigation against remote RPCs', () => {
+    mockExecSync.mockReturnValueOnce(successResult())
+      .mockReturnValueOnce(successResult())
+
     const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, 'https://mainnet.base.org', WALLET)
 
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
-    expect(mockExecSync).not.toHaveBeenCalled()
+    expect(result.success).toBe(true)
+    expect(mockExecSync).toHaveBeenCalledTimes(2)
   })
 
   it('captures total duration across both calls', () => {
@@ -278,11 +291,14 @@ describe('edge cases', () => {
     expect(result.revertReason).toContain('token not found')
   })
 
-  it('rejects RPC URLs that are neither localhost nor 127.0.0.1', () => {
+  it('simulates against any reachable remote RPC address', () => {
+    mockExecSync.mockReturnValueOnce(successResult(''))
+      .mockReturnValueOnce(successResult(''))
+
     const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, 'http://192.168.1.1:8545', WALLET)
 
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.success).toBe(true)
+    expect(result.revertReason).toBeUndefined()
   })
 })
 
@@ -422,7 +438,7 @@ describe('RPC URL edge cases', () => {
     const result = simulateApprove(TOKEN, POOL, 1000000n, 'localhost:18545', WALLET)
 
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 
   it('accepts http://localhost without port', () => {
@@ -433,25 +449,26 @@ describe('RPC URL edge cases', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects https://127.0.0.1 (https not http)', () => {
+  it('accepts https://127.0.0.1 as a remote RPC', () => {
+    mockExecSync.mockReturnValueOnce(successResult())
+
     const result = simulateApprove(TOKEN, POOL, 1000000n, 'https://127.0.0.1:18545', WALLET)
 
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.success).toBe(true)
   })
 
-  it('rejects uppercase HTTP://LOCALHOST', () => {
+  it('rejects uppercase HTTP://LOCALHOST (scheme must be lowercase)', () => {
     const result = simulateApprove(TOKEN, POOL, 1000000n, 'HTTP://LOCALHOST:8545', WALLET)
 
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 
   it('rejects empty RPC URL string', () => {
     const result = simulateApprove(TOKEN, POOL, 1000000n, '', WALLET)
 
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('FORK_REQUIRED')
+    expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 })
 
@@ -1071,18 +1088,17 @@ describe('architecture invariants', () => {
     expect(approveCall).not.toContain(' 2 ')
   })
 
-  it('FORK_REQUIRED check prevents execSync for all three functions', () => {
-    const nonLocalUrl = 'https://mainnet.base.org'
-
-    simulateApprove(TOKEN, POOL, 1000000n, nonLocalUrl, WALLET)
+  it('INVALID_RPC_URL guard prevents execSync for malformed URLs only', () => {
+    // Remote/valid RPCs proceed to the simulator (no fork ceiling anymore).
+    simulateApprove(TOKEN, POOL, 1000000n, 'localhost:18545', WALLET)
     expect(mockExecSync).not.toHaveBeenCalled()
     vi.clearAllMocks()
 
-    simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, nonLocalUrl, WALLET)
+    simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, 'not-a-url', WALLET)
     expect(mockExecSync).not.toHaveBeenCalled()
     vi.clearAllMocks()
 
-    simulateFullMitigation(BORROWER, TOKEN, 1000000n, nonLocalUrl, WALLET)
+    simulateFullMitigation(BORROWER, TOKEN, 1000000n, '', WALLET)
     expect(mockExecSync).not.toHaveBeenCalled()
   })
 })
