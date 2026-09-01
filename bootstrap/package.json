@@ -1,0 +1,23 @@
+{
+  "name": "lax-starter",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start:listener": "tsx scripts/hf-listener.ts",
+    "start:fork": "bash scripts/start-fork.sh",
+    "setup:fork": "bash scripts/fork-setup-usdc.sh",
+    "drop:price": "bash scripts/drop-oracle-price.sh",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ethers": "^6.0.0",
+    "@keeperhub/wallet": "^0.1.15"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0",
+    "vitest": "^3.0.0"
+  }
+}
