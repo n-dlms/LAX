@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+@theme {
+  /* LAX locked color palette (ADR-008) */
+  --color-bgcol: #0a0a0a;
+  --color-surface: #1a1a1a;
+  --color-bordercol: #2a2a2a;
+  --color-primary: #e0e0e0;
+  --color-secondary: #808080;
+  --color-green: #22c55e;
+  --color-yellow: #eab308;
+  --color-orange: #f97316;
+  --color-red: #ef4444;
+  --color-amber: #ffb000;
+  --color-cyan: #06b6d4;
+}
+
+:root {
+  font-family: ui-monospace, "SF Mono", "Fira Code", "Cascadia Code",
+    "Source Code Pro", Menlo, Monaco, Consolas, monospace;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  color: #e0e0e0;
+  background-color: #0a0a0a;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #0a0a0a;
+}
+
+/* Projector-readable typography scale (10-foot legibility) */
+.font-projector-title {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+}
+.font-projector-value {
+  font-size: 64px;
+  line-height: 72px;
+  font-weight: 500;
+}
+.font-projector-body {
+  font-size: 18px;
+  line-height: 28px;
+}
+
+/* Screen transitions */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out forwards;
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s ease-out forwards;
+}
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out forwards;
+}
+.animate-stagger-1 { animation-delay: 0.05s; }
+.animate-stagger-2 { animation-delay: 0.15s; }
+.animate-stagger-3 { animation-delay: 0.25s; }
+
+/* Cursor blink animation for terminal aesthetic */
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.cursor-blink {
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* Heartbeat pulse for listener-alive indicator */
+@keyframes heartbeat {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.9); }
+}
+.heartbeat-pulse {
+  animation: heartbeat 2s ease-in-out infinite;
+}
+
+/* Custom scrollbar styled like a terminal scrollback */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* Selection color (amber) */
+::selection {
+  background: #ffb000;
+  color: #0a0a0a;
+}
+::-moz-selection {
+  background: #ffb000;
+  color: #0a0a0a;
+}
+
+/* Auto-scroll log panel bottom anchor */
+.log-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Cinematic log entry entrance — slides up from below with ease-out */
+@keyframes log-entry {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-log-entry {
+  animation: log-entry 0.7s ease-out forwards;
+}
