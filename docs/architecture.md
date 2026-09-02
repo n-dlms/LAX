@@ -16,11 +16,11 @@ LAX is **not one process** — it is a coordinated set of processes that boot to
 
 | Process | Lifecycle | Port / I/O | Responsibility |
 |---------|-----------|------------|----------------|
-| **Anvil fork** | Demo-long | `127.0.0.1:8545` (HTTP RPC) | Holds the Base-mainnet-forked EVM state. Receives `anvil_setStorageAt` oracle overrides. Accepts `eth_sendRawTransaction` from `@keeperhub/wallet`. |
+| **Anvil fork** | Demo-long | `127.0.0.1:18545` (HTTP RPC) | Holds the Base-mainnet-forked EVM state. Receives `anvil_setStorageAt` oracle overrides. Accepts `eth_sendRawTransaction` from `@keeperhub/wallet`. |
 | **HF listener** (`scripts/hf-listener.ts`) | Demo-long, daemon | Polls Anvil RPC, POSTs to KeeperHub webhook | Polls `getUserAccountData` at 2s intervals on the Anvil fork. When HF <= 1.05, POSTs `{ health_factor, user_address }` to KeeperHub's `/api/workflows/<id>/webhook`. Shuts down after one successful POST to prevent re-fires. |
 | **OpenCode agent** | Started by demo operator on `lax` command | Stdin/stdout, MCP servers configured in `opencode.jsonc` | The LLM-driven control loop. Picks the per-workflow MCP tool `lax-liquidation-armor` when triggered. Calls `web3/write-contract` for approve, then `repayDebt` via the Aave V3 plugin. |
 | **KeeperHub MCP server** (aggregate + per-workflow) | Hosted by KeeperHub | `https://app.keeperhub.com/mcp` and `/mcp/w/lax-liquidation-armor` over HTTP/SSE | Not a process we run — remote service. Receives MCP calls, dispatches to KeeperHub's executor, returns results. |
-| **KeeperHub executor** | Hosted by KeeperHub | Internal to KeeperHub | The server-side engine that fires the workflow, signs via Turnkey, broadcasts the tx to whatever RPC the workflow is configured for (in our case, the demo Anvil fork's `localhost:8545`). |
+| **KeeperHub executor** | Hosted by KeeperHub | Internal to KeeperHub | The server-side engine that fires the workflow, signs via Turnkey, broadcasts the tx to whatever RPC the workflow is configured for (in our case, the demo Anvil fork's `localhost:18545`). |
 | **Dashboard** (`src/dashboard/`) | Demo-long, served by Vite dev server | `127.0.0.1:5173` (Vite default) | Single-page React + Tailwind app. Polls `get_execution_logs` (via the agent's MCP bridge) at adaptive intervals. Renders the 8 beats. |
 
 ### 1.2 Scripts (run-once orbiotics)
@@ -217,7 +217,7 @@ Each component listed below owns exactly one responsibility and one state transi
 
 | # | Component | File(s) | State(s) Owned | Input | Output |
 |---|-----------|---------|----------------|-------|--------|
-| C1 | **Fork booter** | `scripts/start-fork.sh`, `scripts/fork-setup-usdc.sh` | BOOT | Base RPC URL, pinned block number | Anvil RPC at localhost:8545 with seeded USDC balance |
+| C1 | **Fork booter** | `scripts/start-fork.sh`, `scripts/fork-setup-usdc.sh` | BOOT | Base RPC URL, pinned block number | Anvil RPC at localhost:18545 with seeded USDC balance |
 | C2 | **HF listener** | `scripts/hf-listener.ts` | WATCHING → TRIGGERED | Poll `http://localhost:8545` Aave V3 Pool → getUserAccountData | POST to KeeperHub `/api/workflows/<id>/webhook` when HF <= 1.05 |
 | C3 | **Safety plugin** | `src/safety-plugin/keeperhub-safety-interceptor.ts` | All states (always-on gate) | Intercepts `executeWorkflow` calls from OpenCode | Throws on `GAS_SPONSORSHIP_*`, `DAILY_CAP_EXHAUSTED`, `SELECTOR_DENIED` |
 | C4 | **NIM + OpenCode agent loop** | `opencode.jsonc`, `src/lax-liquidation-armor.md` | TRIGGERED → APPROVING → REPAYING → RESOLVED | Workflow execution start signal | Two txns on Anvil fork; reads back `getUserAccountData` to confirm HF recovery |

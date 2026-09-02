@@ -1,4 +1,4 @@
-import { CONFIG } from '../src/config.js'
+import { CONFIG, getBorrowerAddress } from '../src/config.js'
 import { hfToBigint, hfToNumber, computeRepayAmount, usdcToString } from '../src/repay-math.js'
 import { ethers } from 'ethers'
 
@@ -62,15 +62,18 @@ async function main(): Promise<void> {
   const rawContract = new ethers.Contract(CONFIG.AAVE_POOL, POOL_ABI, provider)
   const pool = rawContract as unknown as AavePoolInterface
   const triggerBigint = hfToBigint(CONFIG.HF.TRIGGER)
+  // CLI arg overrides env LAX_BORROWER_ADDRESS, then the config default.
+  // Run a second instance with a different address to monitor a second position.
+  const borrower = getBorrowerAddress(process.argv[2])
 
   console.log(`HF listener started. Polling ${rpcUrl} every ${POLL_MS}ms`)
-  console.log(`Monitoring borrower: ${CONFIG.BORROWER_ADDRESS}`)
+  console.log(`Monitoring borrower: ${borrower}`)
   console.log(`Trigger at HF <= ${hfToNumber(triggerBigint)}`)
   console.log(`---`)
 
   while (true) {
     try {
-      const data = await pool.getUserAccountData(CONFIG.BORROWER_ADDRESS)
+      const data = await pool.getUserAccountData(borrower)
       const hf: bigint = data.healthFactor
 
       if (hf <= triggerBigint && hf > 0n) {
@@ -84,7 +87,7 @@ async function main(): Promise<void> {
         console.error(`Repay: ${exactAmount} exact, ${repayAmount} with 1% buffer (${usdcToString(repayAmount)} USDC)`)
 
         if (CONFIG.WORKFLOW_ID) {
-          await fireWebhook(hf, CONFIG.BORROWER_ADDRESS, data.totalDebtBase, repayAmount)
+          await fireWebhook(hf, borrower, data.totalDebtBase, repayAmount)
         } else {
           console.error('WORKFLOW_ID not configured — webhook not fired')
         }

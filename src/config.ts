@@ -1,6 +1,9 @@
 export const CONFIG = {
   WALLET_ADDRESS: '0x8Bb7870242e75132Fd62265cA8ABF771d49C821C' as const,
   WALLET_SUBORG_ID: '514bb660-86a5-47e8-9f35-52d632c12803' as const,
+  // Fallback borrower (nothing in the live position). The real borrower for an
+  // on-chain demo is resolved via getBorrowerAddress() — env LAX_BORROWER_ADDRESS or
+  // the agentic-wallet executor (see scripts/deploy-workflow-sepolia.sh for 84532).
   BORROWER_ADDRESS: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as const,
 
   HF: {
@@ -52,6 +55,15 @@ export const CONFIG = {
   LISTENER_POLL_MS: 2000,
   DASHBOARD_URL: `http://127.0.0.1:5173` as const,
 } as const
+
+/** Resolve the borrower address for a live position (env-first, CLI arg override).
+ *  Priority: explicit cliArg > env LAX_BORROWER_ADDRESS > config default. */
+export function getBorrowerAddress(cliArg?: string | undefined): string {
+  if (cliArg && cliArg.trim()) return cliArg.trim()
+  const fromEnv = (typeof process !== 'undefined' && process.env?.LAX_BORROWER_ADDRESS) || ''
+  if (fromEnv.trim()) return fromEnv.trim()
+  return CONFIG.BORROWER_ADDRESS
+}
 
 export function validateConfig(): string[] {
   const errors: string[] = []

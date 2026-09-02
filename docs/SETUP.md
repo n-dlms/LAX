@@ -99,6 +99,6 @@ If wifi drops during the demo:
 ## Running Tests
 
 ```bash
-npm test          # 27 tests, all pass
-npm run typecheck # 0 errors
+npm test          # 509 tests, all pass
+npm run lint      # 0 errors (tsc --noEmit)
 ```

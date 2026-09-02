@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { CONFIG, validateConfig } from '../src/config.js'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { CONFIG, validateConfig, getBorrowerAddress } from '../src/config.js'
 
 describe('validateConfig', () => {
   it('returns empty errors array for valid config', () => {
@@ -118,5 +118,36 @@ describe('validateConfig', () => {
 
   it('CHAIN_ID matches Base mainnet or Sepolia', () => {
     expect([8453, 84532]).toContain(CONFIG.CHAIN_ID)
+  })
+})
+
+describe('getBorrowerAddress', () => {
+  const original = process.env.LAX_BORROWER_ADDRESS
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.LAX_BORROWER_ADDRESS
+    else process.env.LAX_BORROWER_ADDRESS = original
+  })
+
+  it('returns the config default when nothing overrides it', () => {
+    delete process.env.LAX_BORROWER_ADDRESS
+    expect(getBorrowerAddress()).toBe(CONFIG.BORROWER_ADDRESS)
+  })
+
+  it('prefers the CLI arg over env and default', () => {
+    process.env.LAX_BORROWER_ADDRESS = '0x1111111111111111111111111111111111111111'
+    expect(getBorrowerAddress('0x2222222222222222222222222222222222222222')).toBe(
+      '0x2222222222222222222222222222222222222222',
+    )
+  })
+
+  it('falls back to env when no CLI arg is given', () => {
+    process.env.LAX_BORROWER_ADDRESS = '0x3333333333333333333333333333333333333333'
+    expect(getBorrowerAddress()).toBe('0x3333333333333333333333333333333333333333')
+  })
+
+  it('trims whitespace from the CLI arg', () => {
+    delete process.env.LAX_BORROWER_ADDRESS
+    expect(getBorrowerAddress('  ' + CONFIG.BORROWER_ADDRESS + '  ')).toBe(CONFIG.BORROWER_ADDRESS)
   })
 })

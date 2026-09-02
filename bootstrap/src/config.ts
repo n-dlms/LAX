@@ -45,6 +45,13 @@ export const CONFIG = {
   DASHBOARD_URL: `http://127.0.0.1:5173` as const,
 } as const
 
+export function getBorrowerAddress(cliArg?: string | undefined): string {
+  if (cliArg && cliArg.trim()) return cliArg.trim()
+  const fromEnv = (typeof process !== 'undefined' && process.env?.LAX_BORROWER_ADDRESS) || ''
+  if (fromEnv.trim()) return fromEnv.trim()
+  return CONFIG.BORROWER_ADDRESS
+}
+
 export function validateConfig(): string[] {
   const errors: string[] = []
 
