@@ -23,6 +23,18 @@
 3. Executes the transaction onchain through KeeperHub — gas-optimized, MEV-protected, audited
 4. Logs every action to the audit trail with transaction hashes, gas used, and outcome
 
+## The Agent
+
+LAX is an **AI agent** (OpenCode + NVIDIA NIM) that decides *when* to act and lets
+KeeperHub execute *deterministically* — nothing is inferred at execution time. The
+agent's brain lives in [`agent/`](agent/):
+
+- [`agent/SYSTEM_PROMPT.md`](agent/SYSTEM_PROMPT.md) — the guardian's standing orders and hard constraints
+- [`agent/skills/`](agent/skills/) — runnable procedures: monitor health factor, trigger mitigation, fund position
+- [`agent/RUNBOOK.md`](agent/RUNBOOK.md) — the 8-beat live demo sequence
+
+Wired into [`.opencode.jsonc`](opencode.jsonc) as the `lax-guardian` agent (system prompt + skills).
+
 ## Submission (Main Track — separate BUIDL from bounty)
 
 - [ ] GitHub Repo (this repo — replace placeholder link)

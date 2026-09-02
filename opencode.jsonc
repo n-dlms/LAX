@@ -1,5 +1,15 @@
 {
   "$schema": "https://opencode.ai/schemas/opencode.json",
+  "agent": {
+    "lax-guardian": {
+      "prompt": "agent/SYSTEM_PROMPT.md",
+      "skills": [
+        "agent/skills/monitor-health-factor.md",
+        "agent/skills/trigger-mitigation.md",
+        "agent/skills/fund-position.md"
+      ]
+    }
+  },
   "mcp": {
     "keeperhub": {
       "type": "remote",
