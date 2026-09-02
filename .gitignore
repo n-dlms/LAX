@@ -26,3 +26,6 @@ Thumbs.db
 # Anvil fork state
 fork-state.json
 /tmp/lax-anvil-state/
+
+# editor artifact
+.commandcode/
