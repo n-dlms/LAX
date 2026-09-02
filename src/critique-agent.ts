@@ -52,14 +52,20 @@ function failOpenEnabled(): boolean {
 
 function runStage<T>(stage: 1 | 2 | 3, name: string, fn: () => T, timeoutMs: number): { result: StageResult; value?: T } {
   const start = Date.now()
-  const timer = setTimeout(() => {
-    throw new Error(`${name} timed out after ${timeoutMs}ms`)
-  }, timeoutMs)
+  let timedOut = false
+  // A bare `throw` inside setTimeout is an uncaught exception that crashes the
+  // process and can never be caught by the surrounding try/catch — so we set a
+  // flag and check elapsed time after fn() returns instead.
+  const timer = setTimeout(() => { timedOut = true }, timeoutMs)
+  timer.unref?.()
 
   try {
     const value = fn()
     clearTimeout(timer)
     const durationMs = Date.now() - start
+    if (timedOut) {
+      return { result: stageResult(stage, name, false, `${name} timed out after ${timeoutMs}ms`, durationMs) }
+    }
     return {
       result: stageResult(stage, name, true, `Passed (${durationMs}ms)`, durationMs),
       value,
