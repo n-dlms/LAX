@@ -53,7 +53,13 @@ Economy" hackathon bounty submission (DoraHacks), filed as a separate BUIDL.
 
 ---
 
-## Push instructions (needs your GitHub account)
+## ✅ FILED — PR #2268
+
+https://github.com/KeeperHub/keeperhub/pull/2268 (branch `n-dlms:docs/gas-sponsorship-fallback` → `KeeperHub:staging`)
+
+Watch for: CI checks (`pr-title-check`, `check-issue-link` should be skipped for docs), maintainer review, merge.
+
+<details><summary>Original push instructions</summary>
 
 ```bash
 cd /tmp/keeperhub
@@ -72,3 +78,4 @@ banner seen during research), raise it in Discord referencing this patch.
 - [x] Value to platform: sponsorship is the agent-economy pitch; the fallback confusion is real (we hit it live)
 - [x] Scope/completeness: eligibility conditions + both observable outcomes + both remedies + cross-links
 - [~] Code quality/tests: docs-only (no test surface) — precision is the substitute (exact error strings, code file references, commit hash cited)
+</details>
