@@ -53,7 +53,23 @@ Economy" hackathon bounty submission (DoraHacks), filed as a separate BUIDL.
 
 ---
 
-## ✅ FILED — PR #2268
+## 🔄 REVIEW ROUND 1 (suisuss) — changes requested, addressed in a417e00
+
+PR: https://github.com/KeeperHub/keeperhub/pull/2268 (branch `n-dlms:docs/gas-sponsorship-fallback` → `KeeperHub:staging`)
+
+Review verdict: "Changes requested — the insufficient_balance code is not present on the run path these pages describe, and three of the other four claims contradict what the code does." CI green (`check-issue-link` passed = docs exemption worked).
+
+All 6 findings verified against code and fixed (commit a417e00):
+1. `insufficient_balance` code is simulate-path ONLY (gas-preflight discards it; write-contract-core returns message string) → re-scoped to /api/execute simulate + MCP simulate; run path keys on message text
+2. A "Gas sponsored" badge EXISTS (workflow-runs.tsx:876) → corrected to "fallback run simply lacks the badge"
+3. Preflight runs BEFORE broadcast (no tx hash exists) → "before the transaction was broadcast"
+4. Message ≠ fallback proof (emitted on every direct-signing path) → inverted framing
+5. Conditions insufficient: sponsored-client.ts also requires turnkeySubOrgId ≠ null (Turnkey-managed wallet) → condition added, list framed as user-controllable subset
+6. Real address → 0x...orgWallet placeholder; frequency claim dropped
+
+Lesson for the next PR: cite the exact function/line for every behavioral claim; the maintainers review docs against code line-by-line (cross-repo callers too).
+
+<details><summary>Original filing notes</summary>
 
 https://github.com/KeeperHub/keeperhub/pull/2268 (branch `n-dlms:docs/gas-sponsorship-fallback` → `KeeperHub:staging`)
 
