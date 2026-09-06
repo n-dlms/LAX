@@ -1,7 +1,8 @@
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 import { execute } from "../cli/executor";
 import { navigateHistory, resetHistoryIndex } from "../cli/history";
 import { getAutocompleteSuggestions } from "../cli/registry";
+import { cliDispatcher } from "../cli/dispatcher";
 import type { CommandResult } from "../cli/types";
 
 export interface OutputEntry {
@@ -38,6 +39,17 @@ export function useTerminalInput() {
   const addToScrollback = useCallback((entry: OutputEntry) => {
     scrollbackRef.current = [...scrollbackRef.current.slice(-199), entry];
     forceUpdate((n) => n + 1);
+  }, []);
+
+  // `lax clear` / `lax reset` emit a clear event — wipe the terminal scrollback
+  // too, not just the monitor event log (P2 paper cut: clear did not clear).
+  useEffect(() => {
+    return cliDispatcher.subscribe((event) => {
+      if (event.type === "clear") {
+        scrollbackRef.current = [];
+        forceUpdate((n) => n + 1);
+      }
+    });
   }, []);
 
   const setInputState = useCallback((updates: Partial<TerminalInputState>) => {

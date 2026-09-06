@@ -4,7 +4,7 @@ import type {
   LogEntry,
   MitigationEvent,
 } from "../types";
-import { LAX_CONFIG, APP_NAME } from "../types";
+import { LAX_CONFIG, APP_NAME } from "../cli/lax-config";
 import { usePositionPoller, POLL_INTERVAL_MS } from "../hooks/usePositionPoller";
 import { useTerminalInput } from "../hooks/useTerminalInput";
 import { rpcRequest } from "../utils/rpc";
@@ -1102,14 +1102,26 @@ export default function MonitorView({ onTrigger, autoTriggerBlocked }: MonitorVi
     if (position && listenerAlive) {
       const hf = hfToNumber(position.healthFactor);
       if (prevTriggeredRef.current === false && hf <= LAX_CONFIG.HF_TRIGGER && !autoTriggerBlocked.current) {
-        prevTriggeredRef.current = true;
-        newLogs.push({
-          ts: Date.now(),
-          level: "trigger",
-          message: `HF dropped to ${hf.toFixed(4)} — TRIGGERED (≤ ${LAX_CONFIG.HF_TRIGGER})`,
-        });
+        // Auto-trigger only when the guardian is armed — same contract as the
+        // CLI's `lax autopilot` (previously the dashboard fired on page load
+        // whenever HF was low, even with the guardian disarmed).
+        if (!guardianState.enabled) {
+          newLogs.push({
+            ts: Date.now(),
+            level: "warn",
+            message: `HF ${hf.toFixed(4)} ≤ trigger ${LAX_CONFIG.HF_TRIGGER} — guardian DISARMED, not auto-triggering (use lax arm)`,
+          });
+          prevTriggeredRef.current = true;
+        } else {
+          prevTriggeredRef.current = true;
+          newLogs.push({
+            ts: Date.now(),
+            level: "trigger",
+            message: `HF dropped to ${hf.toFixed(4)} — TRIGGERED (≤ ${LAX_CONFIG.HF_TRIGGER})`,
+          });
 
-        onTrigger(buildMitigationEvent(position));
+          onTrigger(buildMitigationEvent(position));
+        }
       }
     }
 
@@ -1125,7 +1137,7 @@ export default function MonitorView({ onTrigger, autoTriggerBlocked }: MonitorVi
     if (newLogs.length > 0) {
       setLogs((prev) => [...prev, ...newLogs].slice(-LOG_CAP));
     }
-  }, [buildMitigationEvent, position, listenerAlive, logs, onTrigger]);
+  }, [buildMitigationEvent, position, listenerAlive, logs, onTrigger, guardianState.enabled]);
 
   const confirmNeedsAction = position ? hfToNumber(position.healthFactor) <= LAX_CONFIG.HF_TRIGGER : false;
 

@@ -70,6 +70,4 @@ export const LAX_CONFIG = {
     `https://app.keeperhub.com/runs/${executionId}`,
   TX_EXPLORER_URL: (txHash: string) =>
     `https://basescan.org/tx/${txHash}`,
-  LTC_ADDRESS: "ltc1qdpnyv8m2lsmxsaxq8qrtwq3tqhqgc2pypq2j8m",
-  SOL_ADDRESS: "5J8z3NQVQF2YqJwqm7opnQGzMhGwq5Q5FHGHn7NZvJ8p",
 } as const;
