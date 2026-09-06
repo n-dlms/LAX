@@ -2,6 +2,11 @@ import type { CommandContext, ParsedArgs, CommandResult, CommandDefinition } fro
 import { COMMANDS, getCommandNames } from "../registry";
 import { APP_NAME } from "../lax-config";
 
+function centered(text: string, width: number): string {
+  const pad = Math.max(0, Math.floor((width - text.length) / 2));
+  return " ".repeat(pad) + text;
+}
+
 function showCommandHelp(cmd: CommandDefinition): string {
   const lines = [
     `Name: ${cmd.name}`,
@@ -41,25 +46,34 @@ export async function handleHelp(_ctx: CommandContext, args: ParsedArgs): Promis
     { name: "System", key: "system" },
   ];
 
-  const lines: string[] = [`${APP_NAME} Commands:`, "".padStart(50, "─")];
+  const body: string[] = [];
   for (const cat of categories) {
-    lines.push(`\n  ${cat.name}:`);
+    body.push("", `  ${cat.name}:`);
     const names = getCommandNames();
     let count = 0;
     for (const name of names) {
       if (count >= 6) break;
       const cmd = COMMANDS[name];
       if (cmd && cmd.category === cat.key && cmd.name === name) {
-        lines.push(`    ${cmd.syntax.padEnd(30)} ${cmd.description}`);
+        body.push(`    ${cmd.syntax.padEnd(30)} ${cmd.description}`);
         count++;
       }
     }
   }
-  lines.push("\n  lax help <command>  — detailed help for a specific command");
-  lines.push("  lax man <command>   — full manual with examples");
-  lines.push("  Tab / ↑↓           — autocomplete / history");
+  const footer = [
+    "",
+    "  lax help <command>  — detailed help for a specific command",
+    "  lax man <command>   — full manual with examples",
+    "  Tab / ↑↓           — autocomplete / history",
+  ];
 
-  return { output: lines.join("\n") };
+  // Title is centered and the rule spans the exact content width, so the line
+  // reaches both borders of the framed output (the frame sizes to the widest
+  // content line — a terminal-width rule would fall short or overflow).
+  const width = Math.max(60, ...[...body, ...footer].map((l) => l.length));
+  const header = [centered(`${APP_NAME} Commands`, width), "─".repeat(width)];
+
+  return { output: [...header, ...body, ...footer].join("\n") };
 }
 
 export async function handleMan(_ctx: CommandContext, args: ParsedArgs): Promise<CommandResult> {
