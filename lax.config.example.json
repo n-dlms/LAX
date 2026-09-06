@@ -1,6 +1,20 @@
 {
+  "networks": {
+    "base-fork": {
+      "rpc": "http://127.0.0.1:18545",
+      "aavePool": "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5",
+      "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "workflowId": "7gdt0ty7zk1orq1j4wc74"
+    },
+    "base-sepolia": {
+      "rpc": "https://sepolia.base.org",
+      "aavePool": "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27",
+      "usdc": "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f",
+      "workflowId": "l4pbmt6jdek9c3lwt0y3b"
+    }
+  },
   "positions": [
-    { "name": "main", "borrower": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "threshold": 1.05, "target": 1.1 },
-    { "name": "treasury", "borrower": "0x8Bb7870242e75132Fd62265cA8ABF771d49C821C", "threshold": 1.15, "target": 1.25 }
+    { "name": "main", "borrower": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "network": "base-fork" },
+    { "name": "sepolia", "borrower": "0x26833b05be49036d4de306b1f4fba7713cc84de5", "network": "base-sepolia", "threshold": 1.2, "target": 1.5 }
   ]
 }

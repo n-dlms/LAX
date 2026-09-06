@@ -25,6 +25,19 @@ interface RpcResponse {
 
 export const rpc = sharedRpc;
 
+/** Same JSON-RPC call against an arbitrary endpoint (per-position networks). */
+export async function rpcAt<T>(url: string, method: string, params: unknown[]): Promise<T> {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }),
+  });
+  if (!resp.ok) throw new Error(`RPC ${resp.status} from ${url}`);
+  const json = (await resp.json()) as RpcResponse;
+  if (json.error) throw new Error(json.error.message);
+  return json.result as T;
+}
+
 export interface PositionData {
   healthFactor: bigint;
   totalCollateralUSD: bigint;
@@ -33,15 +46,21 @@ export interface PositionData {
   blockNumber: bigint;
 }
 
-/** Read the Aave position via Pool.getUserAccountData — same call the workflow uses. */
-export async function fetchPosition(borrower: string = LAX_CONFIG.BORROWER_ADDRESS): Promise<PositionData | null> {
+/** Read the Aave position via Pool.getUserAccountData — same call the workflow
+ *  uses. Pool and RPC are per-position (multi-network); defaults to the fork. */
+export async function fetchPosition(
+  borrower: string = LAX_CONFIG.BORROWER_ADDRESS,
+  pool: string = LAX_CONFIG.AAVE_POOL,
+  rpcUrl: string = LAX_CONFIG.FORK_RPC,
+): Promise<PositionData | null> {
   try {
     const blockNum = await rpc<string>("eth_blockNumber", []);
     const padded = borrower.slice(2).padStart(64, "0");
-    const raw = await rpc<string>("eth_call", [
-      { to: LAX_CONFIG.AAVE_POOL, data: `${GET_USER_ACCOUNT_DATA_SELECTOR}${padded}` },
-      "latest",
-    ]);
+    const raw = await rpcAt<string>(
+      rpcUrl,
+      "eth_call",
+      [{ to: pool, data: `${GET_USER_ACCOUNT_DATA_SELECTOR}${padded}` }, "latest"],
+    );
     if (!raw || raw === "0x") return null;
     const data = raw.slice(2);
     const word = (i: number) => BigInt(`0x${data.slice(i * 64, (i + 1) * 64)}`);

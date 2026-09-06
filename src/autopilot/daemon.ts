@@ -10,7 +10,7 @@ import { style, TOKENS } from "../cli/ui";
 import { computeRepayAmount, hfToBigint, usdcToString } from "../repay-math";
 import { fireWorkflowWebhook, runUrl } from "../keeperhub";
 import { runMitigationGate } from "./gate";
-import { loadPositions, type Position } from "./positions";
+import { loadPositions, type ResolvedPosition } from "./positions";
 import { loadState, saveState, appendMitigation, mitigationLogPath, type DaemonState } from "./state";
 
 export interface DaemonOptions {
@@ -106,11 +106,11 @@ export async function runAutopilot(daemonOpts: DaemonOptions = {}): Promise<void
   log(TOKENS.shield, style.gray, "autopilot stopped");
 }
 
-function renderDaemonHeader(o: DaemonOptions, positions: Position[], cooldownMs: number): string {
+function renderDaemonHeader(o: DaemonOptions, positions: ResolvedPosition[], cooldownMs: number): string {
   const lines = [
     "",
     `  ${style.bold(style.cyan("LAX AUTOPILOT"))} ${dryRunLabel(o)}`,
-    `  ${style.gray("positions")} ${positions.map((p) => `${p.name} ${style.gray(p.borrower.slice(0, 8) + "…")} ${style.gray(`≤${p.threshold}`)}`).join("  ")}`,
+    `  ${style.gray("positions")} ${positions.map((p) => `${p.name}@${p.network} ${style.gray(p.borrower.slice(0, 8) + "…")} ${style.gray(`≤${p.threshold}`)}`).join("  ")}`,
     `  ${style.gray("execution")} KeeperHub workflow (deterministic) ${style.gray("·")} ${style.gray("cooldown")} ${(cooldownMs / 1000).toFixed(0)}s`,
     "",
   ];
@@ -118,14 +118,14 @@ function renderDaemonHeader(o: DaemonOptions, positions: Position[], cooldownMs:
 }
 
 async function pollOnce(
-  position: Position,
+  position: ResolvedPosition,
   state: DaemonState,
   daemonOpts: DaemonOptions,
   cooldownMs: number,
 ): Promise<PollOutcome> {
   const tag = style.bold(style.cyan(`[${position.name}]`));
 
-  const pos = await fetchPosition(position.borrower);
+  const pos = await fetchPosition(position.borrower, position.aavePool, position.rpc);
   if (!pos) {
     log(TOKENS.warn, style.yellow, `${tag} position read failed — RPC unreachable? retrying next poll`);
     return { decision: "rpc-unreachable", fired: false };
@@ -166,9 +166,9 @@ async function pollOnce(
     targetHf,
     repayAmount: repayUsdc,
     borrowerAddress: position.borrower,
-    poolAddress: LAX_CONFIG.AAVE_POOL,
-    repayToken: LAX_CONFIG.USDC,
-    rpcUrl: LAX_CONFIG.FORK_RPC,
+    poolAddress: position.aavePool,
+    repayToken: position.usdc,
+    rpcUrl: position.rpc,
   }, { recordSpend: !daemonOpts.dryRun });
 
   for (const stage of gate.stages) {
@@ -192,13 +192,14 @@ async function pollOnce(
     const fire = await fireWorkflowWebhook({
       reason: "autopilot-trigger",
       position: position.name,
+      network: position.network,
       borrower: position.borrower,
       repayAmount: repayUsdc.toString(),
       repayAmountHuman: usdcToString(repayUsdc),
       hfAtTrigger: hf.toFixed(4),
       targetHf: position.target,
       triggeredAt: new Date().toISOString(),
-    });
+    }, { workflowId: position.workflowId });
     if (!fire.ok) throw new Error(`KeeperHub ${fire.status}: ${fire.raw.slice(0, 200)}`);
 
     appendMitigation({ kind: "webhook-fired", hf, repayUsdc: repayUsdc.toString(), executionId: fire.executionId });

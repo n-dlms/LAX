@@ -65,6 +65,12 @@ Actual verified run (submission evidence):
 | Repay tx (debt 0.7002 → 0.4002 USDC) | https://sepolia.basescan.org/tx/0x918441fcd4d2071733afc139ed0b5c29cba34ddeefc2ca1583499b10827c8bac |
 | Approve tx | https://sepolia.basescan.org/tx/0xd15cc2c844ea4a0dd50e0878d6819dcff116f48e98f7e2489e6d96679fca2e88 |
 
+**Any network works too** — `lax.config.json` declares named networks (rpc +
+Aave pool + USDC + workflow) and each position lives on one; the daemon
+monitors and defends positions across chains in a single loop (the example
+config ships with the Base fork and Base Sepolia presets used in this repo).
+See `lax.config.example.json`.
+
 **Any Turnkey agentic wallet works** — LAX resolves the executing wallet from
 `LAX_WALLET_ADDRESS` → `~/.keeperhub/wallet.json` → config, never a hardcoded
 address. By default the wallet defends its own position

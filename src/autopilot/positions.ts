@@ -1,13 +1,29 @@
-// Multi-position configuration (V2 plan fix #8).
+// Multi-position, multi-network configuration.
 // lax.config.json (repo root or LAX_CONFIG_PATH):
 // {
+//   "networks": {
+//     "base-fork":    { "rpc": "http://127.0.0.1:18545", "aavePool": "0xA238...", "usdc": "0x8335...", "workflowId": "7gdt..." },
+//     "base-sepolia": { "rpc": "https://sepolia.base.org", "aavePool": "0x8bAB...", "usdc": "0xba50...", "workflowId": "l4pb..." }
+//   },
 //   "positions": [
-//     { "name": "main", "borrower": "0x...", "threshold": 1.05, "target": 1.10 }
+//     { "name": "main",    "borrower": "0x...", "network": "base-fork" },
+//     { "name": "sepolia", "borrower": "0x...", "network": "base-sepolia", "threshold": 1.1 }
 //   ]
 // }
-// Without it, LAX monitors the single default position from src/config.ts.
+// Any Aave V3 network works — a position is (borrower, rpc, pool, usdc,
+// workflow); nothing is hardcoded to a chain. Positions without a network
+// use the default network from src/config.ts.
 import { existsSync, readFileSync } from "node:fs";
 import { CONFIG } from "../config";
+
+const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
+
+export interface NetworkConfig {
+  rpc: string;
+  aavePool: string;
+  usdc: string;
+  workflowId?: string;
+}
 
 export interface Position {
   name: string;
@@ -16,49 +32,125 @@ export interface Position {
   target: number;
 }
 
-const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
+/** A position joined with its network — everything the daemon needs to
+ *  monitor and defend it. */
+export interface ResolvedPosition extends Position {
+  network: string;
+  rpc: string;
+  aavePool: string;
+  usdc: string;
+  workflowId: string;
+}
 
-export function loadPositions(configPath?: string): { positions: Position[]; errors: string[] } {
+interface RawConfig {
+  networks?: Record<string, Partial<NetworkConfig>>;
+  positions?: Array<Partial<Position> & { network?: string }>;
+}
+
+function defaultNetwork(): NetworkConfig {
+  return {
+    rpc: process.env.LAX_FORK_RPC || CONFIG.FORK_RPC_URL,
+    aavePool: CONFIG.AAVE_POOL,
+    usdc: CONFIG.USDC,
+    workflowId: process.env.LAX_WORKFLOW_ID || CONFIG.WORKFLOW_ID,
+  };
+}
+
+export function loadPositions(configPath?: string): {
+  positions: ResolvedPosition[];
+  errors: string[];
+} {
   const path = configPath ?? process.env.LAX_CONFIG_PATH ?? "lax.config.json";
-  const fallback: Position[] = [
-    { name: "default", borrower: CONFIG.BORROWER_ADDRESS, threshold: CONFIG.HF.TRIGGER, target: CONFIG.HF.TARGET },
-  ];
-  if (!existsSync(path)) return { positions: fallback, errors: [] };
-
+  const defaultNet: NetworkConfig = defaultNetwork();
+  const networks: Record<string, NetworkConfig> = { default: defaultNet };
   const errors: string[] = [];
-  try {
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as { positions?: Partial<Position>[] };
-    const raw = parsed.positions ?? [];
-    if (!Array.isArray(raw) || raw.length === 0) return { positions: fallback, errors: ["positions array empty — using default"] };
 
-    const seen = new Set<string>();
-    const positions: Position[] = [];
-    raw.forEach((p, i) => {
-      const name = (p.name ?? `position-${i + 1}`).trim();
-      const borrower = p.borrower ?? "";
-      if (!ADDR_RE.test(borrower)) {
-        errors.push(`position "${name}": invalid borrower address`);
-        return;
+  if (existsSync(path)) {
+    try {
+      const parsed = JSON.parse(readFileSync(path, "utf8")) as RawConfig;
+      for (const [name, net] of Object.entries(parsed.networks ?? {})) {
+        if (!net || !net.rpc || !/^https?:\/\/.+/.test(net.rpc)) {
+          errors.push(`network "${name}": rpc must be an http(s) URL`);
+          continue;
+        }
+        if (!net.aavePool || !ADDR_RE.test(net.aavePool)) {
+          errors.push(`network "${name}": invalid aavePool`);
+          continue;
+        }
+        if (!net.usdc || !ADDR_RE.test(net.usdc)) {
+          errors.push(`network "${name}": invalid usdc`);
+          continue;
+        }
+        networks[name] = {
+          rpc: net.rpc,
+          aavePool: net.aavePool,
+          usdc: net.usdc,
+          workflowId: net.workflowId || defaultNet.workflowId,
+        };
       }
-      const key = borrower.toLowerCase();
-      if (seen.has(key)) {
-        errors.push(`position "${name}": duplicate borrower ${borrower}`);
-        return;
-      }
-      seen.add(key);
-      const threshold = p.threshold ?? CONFIG.HF.TRIGGER;
-      const target = p.target ?? CONFIG.HF.TARGET;
-      if (threshold <= 1.0 || target <= threshold) {
-        errors.push(`position "${name}": need 1.0 < threshold < target`);
-        return;
-      }
-      positions.push({ name, borrower, threshold, target });
-    });
+    } catch (err) {
+      errors.push(`failed to parse ${path}: ${(err as Error).message}`);
+    }
+  }
 
-    if (positions.length === 0) return { positions: fallback, errors };
-    return { positions, errors };
-  } catch (err) {
-    errors.push(`failed to parse ${path}: ${(err as Error).message}`);
+  const fallback: ResolvedPosition[] = [
+    { name: "default", borrower: CONFIG.BORROWER_ADDRESS, threshold: CONFIG.HF.TRIGGER, target: CONFIG.HF.TARGET, ...resolvedNetwork("default", defaultNet) },
+  ];
+
+  let rawPositions: RawConfig["positions"] = [];
+  if (existsSync(path)) {
+    try {
+      const parsed = JSON.parse(readFileSync(path, "utf8")) as RawConfig;
+      rawPositions = parsed.positions ?? [];
+    } catch {
+      /* already reported above */
+    }
+  }
+  if (!Array.isArray(rawPositions) || rawPositions.length === 0) {
+    if (existsSync(path)) errors.push("positions array empty — using default");
     return { positions: fallback, errors };
   }
+
+  const seen = new Set<string>();
+  const positions: ResolvedPosition[] = [];
+  rawPositions.forEach((p, i) => {
+    const name = (p.name ?? `position-${i + 1}`).trim();
+    const borrower = p.borrower ?? "";
+    if (!ADDR_RE.test(borrower)) {
+      errors.push(`position "${name}": invalid borrower address`);
+      return;
+    }
+    const key = borrower.toLowerCase();
+    if (seen.has(key)) {
+      errors.push(`position "${name}": duplicate borrower ${borrower}`);
+      return;
+    }
+    seen.add(key);
+    const threshold = p.threshold ?? CONFIG.HF.TRIGGER;
+    const target = p.target ?? CONFIG.HF.TARGET;
+    if (threshold <= 1.0 || target <= threshold) {
+      errors.push(`position "${name}": need 1.0 < threshold < target`);
+      return;
+    }
+    const netName = p.network ?? "default";
+    const net = networks[netName];
+    if (!net) {
+      errors.push(`position "${name}": unknown network "${netName}"`);
+      return;
+    }
+    positions.push({ name, borrower, threshold, target, ...resolvedNetwork(netName, net) });
+  });
+
+  if (positions.length === 0) return { positions: fallback, errors };
+  return { positions, errors };
+}
+
+function resolvedNetwork(name: string, net: NetworkConfig): { network: string; rpc: string; aavePool: string; usdc: string; workflowId: string } {
+  return {
+    network: name,
+    rpc: net.rpc,
+    aavePool: net.aavePool,
+    usdc: net.usdc,
+    workflowId: net.workflowId ?? CONFIG.WORKFLOW_ID,
+  };
 }

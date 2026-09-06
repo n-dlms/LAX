@@ -127,7 +127,22 @@ These were found *because* the battery exercised real chains, not mocks:
 8. **`--only` not wired** from the binary into the daemon's position filter.
 9. **Dashboard auto-fired on page load** with the guardian disarmed — now requires `arm`.
 
-## 8. Known transients (by design, not bugs)
+## 8. Multi-network monitoring (verified live, two chains, one loop)
+
+With `lax.config.json` declaring `base-fork` (local RPC) and `base-sepolia`
+(public Sepolia RPC), the daemon monitored both positions in a single pass —
+live output:
+
+```
+✔ 21:05:24 [main]    HF 1.0978  — above trigger 1.05    (Anvil fork of Base)
+✔ 21:05:25 [sepolia] HF 10.6227 — above trigger 1.2    (live Base Sepolia)
+```
+
+The Sepolia row is a real on-chain read of the same position whose debt the
+live fire (§1) reduced. On trigger, each position fires its own network's
+KeeperHub workflow with its own pool/USDC — nothing is hardcoded to a chain.
+
+## 9. Known transients (by design, not bugs)
 
 - The first read right after an Anvil boot can race the fork warm-up (~1–2 s);
   the daemon retries and `demo-up.sh` waits for a real position read.

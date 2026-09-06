@@ -118,3 +118,49 @@ describe('loadPositions', () => {
     expect(errors[0]).toContain('positions array empty')
   })
 })
+
+describe('multi-network positions', () => {
+  it('resolves per-network rpc/pool/usdc/workflow', () => {
+    const path = writeConfig(JSON.stringify({
+      networks: {
+        fork: { rpc: 'http://127.0.0.1:18545', aavePool: MAIN, usdc: TREASURY },
+        sepolia: { rpc: 'https://sepolia.base.org', aavePool: TREASURY, usdc: MAIN, workflowId: 'wf-sepolia' },
+      },
+      positions: [
+        { name: 'fork-pos', borrower: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', network: 'fork' },
+        { name: 'sep-pos', borrower: '0x26833b05be49036d4de306b1f4fba7713cc84de5', network: 'sepolia' },
+      ],
+    }))
+    const { positions, errors } = loadPositions(path)
+    expect(errors).toEqual([])
+    expect(positions).toHaveLength(2)
+    expect(positions[0]!.network).toBe('fork')
+    expect(positions[0]!.rpc).toBe('http://127.0.0.1:18545')
+    expect(positions[0]!.aavePool).toBe(MAIN)
+    expect(positions[1]!.network).toBe('sepolia')
+    expect(positions[1]!.rpc).toBe('https://sepolia.base.org')
+    expect(positions[1]!.workflowId).toBe('wf-sepolia')
+  })
+
+  it('positions on the default network need no networks block', () => {
+    const path = writeConfig(JSON.stringify({
+      positions: [{ name: 'solo', borrower: MAIN }],
+    }))
+    const { positions, errors } = loadPositions(path)
+    expect(errors).toEqual([])
+    expect(positions[0]!.network).toBe('default')
+    expect(positions[0]!.rpc.length).toBeGreaterThan(0)
+  })
+
+  it('rejects unknown networks and malformed network configs', () => {
+    const path = writeConfig(JSON.stringify({
+      networks: { bad: { rpc: 'nope' } },
+      positions: [{ borrower: MAIN, network: 'ghost' }],
+    }))
+    const { positions, errors } = loadPositions(path)
+    expect(positions).toHaveLength(1)
+    expect(positions[0]!.name).toBe('default')
+    expect(errors.some((e) => e.includes('unknown network'))).toBe(true)
+    expect(errors.some((e) => e.includes('network "bad"'))).toBe(true)
+  })
+})
