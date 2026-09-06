@@ -79,7 +79,8 @@ cd dashboard && npm install && node node_modules/vite/bin/vite.js --host 0.0.0.0
 6. `./scripts/fire-sepolia.sh` — one real transaction on Base Sepolia (submission evidence)
 
 The full verified-testing log (what was executed and what worked, with on-chain
-evidence) is in [VERIFIED-TESTING.md](VERIFIED-TESTING.md).
+evidence) is in [VERIFIED-TESTING.md](VERIFIED-TESTING.md). The complete CLI
+reference is in [CLI-GUIDE.md](CLI-GUIDE.md).
 4. At HF ≤ 1.05, the dashboard auto-switches to MitigationView
 5. Steps animate: Approve → Repay → Verify HF restored to ≥ 1.10
 6. AuditView shows execution summary + KeeperHub link

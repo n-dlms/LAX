@@ -40,6 +40,9 @@ lax runs / lax audit      # execution records + audit trail
 Interactive REPL: `npm run lax`. Piped scripting works too: `echo "status\nruns" | npm run lax`.
 Safety state, spend caps, and the mitigation log persist in `~/.lax/`.
 
+**Full CLI reference** — every command, flags, expected output, the safety model,
+scripting, and troubleshooting — is in [`docs/CLI-GUIDE.md`](docs/CLI-GUIDE.md).
+
 **One command brings the whole demo up** (fork, seeded position, funded wallet,
 health check — idempotent and self-healing if saved fork state is corrupt):
 
