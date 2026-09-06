@@ -4,10 +4,14 @@
   "private": true,
   "description": "Proactive Aave V3 liquidation defender on KeeperHub",
   "type": "module",
+  "bin": {
+    "lax": "bin/lax.ts"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "dev": "bash scripts/lax",
+    "lax": "tsx bin/lax.ts",
     "lint": "tsc --noEmit"
   },
   "devDependencies": {

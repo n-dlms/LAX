@@ -60,7 +60,9 @@ export const CONFIG = {
  *  Priority: explicit cliArg > env LAX_BORROWER_ADDRESS > config default. */
 export function getBorrowerAddress(cliArg?: string | undefined): string {
   if (cliArg && cliArg.trim()) return cliArg.trim()
-  const fromEnv = (typeof process !== 'undefined' && process.env?.LAX_BORROWER_ADDRESS) || ''
+  // globalThis access keeps this module importable in the browser (dashboard)
+  const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+  const fromEnv = proc?.env?.LAX_BORROWER_ADDRESS || ''
   if (fromEnv.trim()) return fromEnv.trim()
   return CONFIG.BORROWER_ADDRESS
 }

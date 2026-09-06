@@ -10,12 +10,8 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": ".",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "rootDir": "."
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "bin/**/*.ts"],
+  "exclude": ["node_modules", "dist", "dashboard"],
 }
