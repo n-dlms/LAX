@@ -129,13 +129,13 @@ function WatchConfigPanel({
     await onConnectWallet();
   };
 
-  const networkLabel = rpcUrl.includes("127.0.0.1") || rpcUrl.includes("localhost") ? "Anvil (demo)" : rpcUrl.includes("base.org") ? "Base" : "Custom";
+  const networkLabel = rpcUrl.includes("127.0.0.1") || rpcUrl.includes("localhost") ? "Base fork · local" : rpcUrl.includes("base.org") ? "Base" : "Custom";
   let host = rpcUrl;
   try { host = new URL(rpcUrl).host; } catch {}
 
   return (
     <div className="bg-surface border border-bordercol p-4 animate-slide-up">
-      <div className="text-xs text-secondary uppercase tracking-widest mb-3">Watch Position — {APP_NAME}</div>
+      <div className="text-xs text-secondary uppercase tracking-widest mb-3">{APP_NAME} — Watch Position</div>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="flex-1">
@@ -164,11 +164,11 @@ function WatchConfigPanel({
               placeholder="https://mainnet.base.org"
               className="w-full bg-bgcol border border-bordercol px-2 py-1.5 text-xs font-mono text-primary placeholder:text-secondary focus:border-cyan outline-none"
             />
-            <div className="text-[10px] text-secondary mt-1">Anvil: {LAX_CONFIG.FORK_RPC} · Public: {LAX_CONFIG.PUBLIC_RPC}</div>
+            <div className="text-[10px] text-secondary mt-1">Fork: {LAX_CONFIG.FORK_RPC} · Public: {LAX_CONFIG.PUBLIC_RPC}</div>
           </div>
           <div className="flex flex-col gap-1 justify-end">
             <div className="flex gap-1">
-              <button type="button" onClick={() => { setRpcInput(LAX_CONFIG.FORK_RPC); onRpcUrlChange(LAX_CONFIG.FORK_RPC); }} className="border border-bordercol text-secondary px-2 py-1 text-[10px] hover:border-cyan hover:text-cyan">Use Anvil</button>
+              <button type="button" onClick={() => { setRpcInput(LAX_CONFIG.FORK_RPC); onRpcUrlChange(LAX_CONFIG.FORK_RPC); }} className="border border-bordercol text-secondary px-2 py-1 text-[10px] hover:border-cyan hover:text-cyan">Use Fork</button>
               <button type="button" onClick={() => { setRpcInput(LAX_CONFIG.PUBLIC_RPC); onRpcUrlChange(LAX_CONFIG.PUBLIC_RPC); }} className="border border-bordercol text-secondary px-2 py-1 text-[10px] hover:border-cyan hover:text-cyan">Use Public</button>
             </div>
             <button type="button" onClick={handleRpcSave} className="border border-cyan text-cyan px-3 py-1 text-xs hover:bg-cyan hover:text-bgcol">Save RPC</button>
@@ -193,7 +193,7 @@ function ProtectedPositionsPanel({ currentAddress, currentHf, rpcUrl }: { curren
   useEffect(() => {
     if (!currentAddress || currentHf === 0n) return;
     const hfStr = currentHf >= MAX_HF/2n ? "∞" : (Number(currentHf)/1e18).toFixed(2);
-    const net = rpcUrl.includes("127.0.0.1") || rpcUrl.includes("localhost") ? "Anvil" : rpcUrl.includes("base.org") ? "Base" : "Custom";
+    const net = rpcUrl.includes("127.0.0.1") || rpcUrl.includes("localhost") ? "Base fork" : rpcUrl.includes("base.org") ? "Base" : "Custom";
     const entry = { address: currentAddress, network: net, hf: hfStr, lastAction: new Date().toLocaleTimeString() };
     setPositions((prev) => {
       const filtered = prev.filter(p => p.address.toLowerCase() !== currentAddress.toLowerCase());
@@ -206,16 +206,24 @@ function ProtectedPositionsPanel({ currentAddress, currentHf, rpcUrl }: { curren
   if (positions.length === 0) return null;
   return (
     <div className="bg-surface border border-bordercol p-3 animate-slide-up">
-      <div className="text-xs text-secondary uppercase tracking-widest mb-2">Protected Positions — {APP_NAME}</div>
+      <div className="text-xs text-secondary uppercase tracking-widest mb-2">{APP_NAME} — Protected Positions</div>
       <div className="text-[10px] text-secondary mb-2">Your position protects itself while you sleep. It already does for these addresses.</div>
       <div className="space-y-1">
-        {positions.map((p) => (
-          <div key={p.address} className="flex justify-between text-xs border border-bordercol px-2 py-1 bg-bgcol">
-            <span className="font-mono text-cyan">{p.address.slice(0,6)}...{p.address.slice(-4)}</span>
-            <span className="text-secondary">{p.network} · HF {p.hf}</span>
-            <span className="text-secondary text-[10px]">{p.lastAction}</span>
-          </div>
-        ))}
+        {positions.map((p) => {
+          const isLive = p.address.toLowerCase() === currentAddress.toLowerCase();
+          return (
+            <div key={p.address} className="flex justify-between text-xs border border-bordercol px-2 py-1 bg-bgcol">
+              <span className="font-mono text-cyan">{p.address.slice(0,6)}...{p.address.slice(-4)}</span>
+              <span className="text-secondary">
+                {(p.network === "Anvil" ? "Base fork" : p.network)} · HF {p.hf}{" "}
+                {isLive
+                  ? <span className="text-green">· live</span>
+                  : <span className="text-secondary text-[10px]">· as of {p.lastAction}</span>}
+              </span>
+              <span className="text-secondary text-[10px]">{isLive ? "watching" : p.lastAction}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
