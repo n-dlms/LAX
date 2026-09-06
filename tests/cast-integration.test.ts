@@ -65,10 +65,14 @@ describe('shell integration boundaries', () => {
     expect(result.revertReason).not.toBe('FORK_REQUIRED')
   })
 
-  it('accepts http://127.0.0.1:18545 with query params', () => {
-    const result = simulateApprove(TOKEN, POOL, 1000n, 'http://127.0.0.1:18545?foo=bar', WALLET)
+  it('treats query params as part of the URL (deterministic: port 1 never answers)', () => {
+    // Previously pointed at the fork port, which made this pass/fail depending
+    // on whether a local anvil was running. Port 1 refuses connections, so the
+    // assertion is environment-independent: the URL itself is valid, the
+    // connection is not.
+    const result = simulateApprove(TOKEN, POOL, 1000n, 'http://127.0.0.1:1?foo=bar', WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).not.toBe('FORK_REQUIRED')
+    expect(result.revertReason).toContain('RPC_UNREACHABLE')
   })
 
   it('accepts http://localhost with no port', () => {
@@ -121,7 +125,7 @@ describe('shell integration boundaries', () => {
     expect(critique.passed).toBe(false)
   })
 
-  it('runCritique with http://0.0.0.0:18545 fails', () => {
+  it('runCritique with unreachable 0.0.0.0 rpc fails (deterministic port)', () => {
     const critique = runCritique({
       currentHf: hfToBigint(1.04),
       targetHf: hfToBigint(1.10),
@@ -131,7 +135,7 @@ describe('shell integration boundaries', () => {
       walletAddress: WALLET,
       borrowerAddress: BORROWER,
       poolAddress: POOL,
-      rpcUrl: 'http://0.0.0.0:18545',
+      rpcUrl: 'http://0.0.0.0:1',
     })
     expect(critique.passed).toBe(false)
   })

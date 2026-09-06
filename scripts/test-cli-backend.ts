@@ -1,11 +1,11 @@
 // CLI Backend Stress Test Runner (90+ scenarios)
 // Run: node --import tsx scripts/test-cli-backend.mjs
 
-import { parseInput } from '../dashboard/src/cli/parser.ts';
-import { COMMANDS, getCommandNames, getAutocompleteSuggestions, fuzzyFind } from '../dashboard/src/cli/registry.ts';
-import { pushHistory, navigateHistory, resetHistoryIndex, getHistory, historySearch } from '../dashboard/src/cli/history.ts';
-import { resetSession, getSession, incrementCommandCount, addSnapshot, listSnapshots, getSnapshot, addExecutionRecord, getExecutionRecords, getGuardianState, setGuardianState, setMockMode, isMockMode } from '../dashboard/src/cli/session.ts';
-import { cliDispatcher } from '../dashboard/src/cli/dispatcher.ts';
+import { parseInput } from '../src/cli/parser.ts';
+import { COMMANDS, getCommandNames, getAutocompleteSuggestions, fuzzyFind } from '../src/cli/registry.ts';
+import { pushHistory, navigateHistory, resetHistoryIndex, getHistory, historySearch } from '../src/cli/history.ts';
+import { resetSession, getSession, incrementCommandCount, addSnapshot, listSnapshots, getSnapshot, addExecutionRecord, getExecutionRecords, getGuardianState, setGuardianState, setMockMode, isMockMode } from '../src/cli/session.ts';
+import { cliDispatcher } from '../src/cli/dispatcher.ts';
 
 let pass = 0, fail = 0, t = 0;
 const ok = (c: boolean, l: string) => { t++; c ? pass++ : (fail++, console.error('  FAIL: ' + l)); };
@@ -48,7 +48,7 @@ ok(historySearch('a').length > 0, 'hsearch');
 for (let i = 0; i < 300; i++) pushHistory('' + i, null, { output: '' }, 0);
 ok(getHistory().length <= 200, 'capped');
 pushHistory('bad', null, { output: '', error: 'x' }, 0);
-ok(!getHistory().slice(-1)[0].success, 'err');
+ok(!getHistory().slice(-1)[0]?.success, "err");
 console.log('  History: ' + pass + '/' + t);
 
 console.log('=== Session ===');

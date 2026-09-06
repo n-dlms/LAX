@@ -1,4 +1,10 @@
-import { execSync } from 'child_process'
+// Dry-run simulations for the mitigation gate — synchronous by design.
+// Previously shelled out to Foundry's `cast`; now runs a self-contained Node
+// JSON-RPC helper (scripts/preflight-call.mjs) so Node is the only runtime
+// dependency (V2 plan fix #10).
+import { execFileSync } from 'child_process'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 import { CONFIG } from './config.js'
 
 export interface SimulationResult {
@@ -10,46 +16,37 @@ export interface SimulationResult {
   durationMs: number
 }
 
-function parseRevertReason(stderr: string): string {
-  const patterns: RegExp[] = [
-    /execution reverted: (.+)/i,
-    /execution reverted with reason: (.+)/i,
-    /execution reverted with custom error '(.+?)'/i,
-    /\(code: -32000\)[^]*?message: (.+)/i,
-  ]
-  for (const pattern of patterns) {
-    const match = stderr.match(pattern)
-    if (match?.[1]) {
-      return match[1].trim()
-    }
-  }
-  return 'UNKNOWN_REVERT'
+const HELPER_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'preflight-call.mjs')
+
+interface HelperResult {
+  ok: boolean
+  reason?: string
+  result?: string
 }
 
-function extractGasEstimate(stdout: string): string | undefined {
-  const match = stdout.match(/"gasUsed":\s*"(\d+)"/)
-  return match?.[1]
-}
-
-function runCastCall(args: string[], rpcUrl: string, from?: string, timeoutMs = 5000): { stdout: string; durationMs: number } {
-  const fromFlag = from ? ` --from ${from}` : ''
-  const cmd = `cast call ${args.join(' ')} --rpc-url ${rpcUrl}${fromFlag}`
+function runEthCall(to: string, data: string, from: string, rpcUrl: string, timeoutMs = 5000): { stdout: HelperResult; durationMs: number } {
   const start = Date.now()
+  const spec = JSON.stringify({ rpcUrl, from, to, data, timeoutMs })
   try {
-    const stdout = execSync(cmd, { encoding: 'utf-8', timeout: timeoutMs })
-    return { stdout: stdout.trim(), durationMs: Date.now() - start }
+    const stdout = execFileSync(process.execPath, [HELPER_PATH, spec], {
+      encoding: 'utf-8',
+      timeout: timeoutMs + 2000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    return { stdout: JSON.parse(stdout) as HelperResult, durationMs: Date.now() - start }
   } catch (err: unknown) {
-    const durationMs = Date.now() - start
-    if (err instanceof Error) {
-      const stderr = (err as { stderr?: string }).stderr ?? err.message
-      throw { stderr, durationMs }
-    }
-    throw { stderr: String(err), durationMs }
+    // helper crashed / timed out — surface as an unreachable RPC
+    const message = err instanceof Error ? err.message.split('\n')[0] : String(err)
+    return { stdout: { ok: false, reason: `SIMULATION_ERROR: ${message}` }, durationMs: Date.now() - start }
   }
 }
 
 function isValidRpc(url: string): boolean {
   return /^https?:\/\/.+/.test(url.trim())
+}
+
+function encodeFunction(selector: string, params: string[]): string {
+  return selector + params.map((p) => p.replace(/^0x/, '').toLowerCase().padStart(64, '0')).join('')
 }
 
 export function simulateApprove(
@@ -63,37 +60,17 @@ export function simulateApprove(
   const start = Date.now()
 
   if (!isValidRpc(rpcUrl)) {
-    return {
-      success: false,
-      stage: 'APPROVE',
-      revertReason: 'INVALID_RPC_URL',
-      durationMs: 0,
-    }
+    return { success: false, stage: 'APPROVE', revertReason: 'INVALID_RPC_URL', durationMs: 0 }
   }
 
-  try {
-    const { stdout, durationMs } = runCastCall(
-      [tokenAddress, `"approve(address,uint256)"`, spender, amountWei.toString()],
-      rpcUrl,
-      effectiveFrom,
-    )
-    const gasEstimate = extractGasEstimate(stdout)
-    return {
-      success: true,
-      stage: 'APPROVE',
-      gasEstimate,
-      durationMs,
-    }
-  } catch (err: unknown) {
-    const e = err as { stderr: string; durationMs: number }
-    return {
-      success: false,
-      stage: 'APPROVE',
-      revertReason: parseRevertReason(e.stderr),
-      rawOutput: e.stderr,
-      durationMs: e.durationMs,
-    }
+  // approve(address,uint256)
+  const data = encodeFunction('0x095ea7b3', [spender, amountWei.toString(16)])
+  const { stdout, durationMs } = runEthCall(tokenAddress, data, effectiveFrom, rpcUrl)
+
+  if (!stdout.ok) {
+    return { success: false, stage: 'APPROVE', revertReason: stdout.reason ?? 'UNKNOWN_REVERT', rawOutput: stdout.reason, durationMs }
   }
+  return { success: true, stage: 'APPROVE', durationMs }
 }
 
 export function simulateRepay(
@@ -109,37 +86,22 @@ export function simulateRepay(
   const start = Date.now()
 
   if (!isValidRpc(rpcUrl)) {
-    return {
-      success: false,
-      stage: 'REPAY',
-      revertReason: 'INVALID_RPC_URL',
-      durationMs: 0,
-    }
+    return { success: false, stage: 'REPAY', revertReason: 'INVALID_RPC_URL', durationMs: 0 }
   }
 
-  try {
-    const { stdout, durationMs } = runCastCall(
-      [poolAddress, `"repay(address,uint256,uint256,address)"`, tokenAddress, amountWei.toString(), interestRateMode.toString(), onBehalfOf],
-      rpcUrl,
-      effectiveFrom,
-    )
-    const gasEstimate = extractGasEstimate(stdout)
-    return {
-      success: true,
-      stage: 'REPAY',
-      gasEstimate,
-      durationMs,
-    }
-  } catch (err: unknown) {
-    const e = err as { stderr: string; durationMs: number }
-    return {
-      success: false,
-      stage: 'REPAY',
-      revertReason: parseRevertReason(e.stderr),
-      rawOutput: e.stderr,
-      durationMs: e.durationMs,
-    }
+  // repay(address,uint256,uint256,address)
+  const data = encodeFunction('0x573ade81', [
+    tokenAddress,
+    amountWei.toString(16),
+    interestRateMode.toString(16),
+    onBehalfOf,
+  ])
+  const { stdout, durationMs } = runEthCall(poolAddress, data, effectiveFrom, rpcUrl)
+
+  if (!stdout.ok) {
+    return { success: false, stage: 'REPAY', revertReason: stdout.reason ?? 'UNKNOWN_REVERT', rawOutput: stdout.reason, durationMs }
   }
+  return { success: true, stage: 'REPAY', durationMs }
 }
 
 export function simulateFullMitigation(
@@ -188,7 +150,6 @@ export function simulateFullMitigation(
   return {
     success: true,
     stage: 'FULL',
-    gasEstimate: repaySim.gasEstimate,
     durationMs: Date.now() - start,
   }
 }

@@ -1,1104 +1,292 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { simulateApprove, simulateRepay, simulateFullMitigation, type SimulationResult } from '../src/preflight-simulator.js'
 
-const mockExecSync = vi.fn()
+// The simulator shells out to process.execPath with a JSON spec, so we mock
+// child_process.execFileSync and assert on the spec / return contract.
+const mockExecFileSync = vi.fn()
 vi.mock('child_process', () => ({
-  execSync: (...args: unknown[]) => mockExecSync(...args),
+  execFileSync: (...args: unknown[]) => mockExecFileSync(...args),
 }))
 
-const RPC_URL = 'http://127.0.0.1:18545'
+import { simulateApprove, simulateRepay, simulateFullMitigation } from '../src/preflight-simulator.js'
+
 const TOKEN = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 const POOL = '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5'
 const WALLET = '0x8Bb7870242e75132Fd62265cA8ABF771d49C821C'
 const BORROWER = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+const RPC_URL = 'http://127.0.0.1:18545'
+
+function specOf(callIndex = 0): {
+  rpcUrl: string; from: string; to: string; data: string; timeoutMs: number
+} {
+  const args = mockExecFileSync.mock.calls[callIndex]!
+  // execFileSync(execPath, [helperPath, specJson], options)
+  return JSON.parse((args[1] as string[])[1]!)
+}
+
+function helperReturn(value: { ok: boolean; reason?: string; result?: string }): void {
+  mockExecFileSync.mockReturnValue(JSON.stringify(value))
+}
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  mockExecFileSync.mockReset()
 })
-
-function successResult(stdout = '') {
-  return stdout
-}
-
-function errorResult(stderr: string) {
-  const err = new Error(stderr)
-  Object.defineProperty(err, 'stderr', { value: stderr })
-  throw err
-}
 
 describe('simulateApprove', () => {
   it('returns success when approve call succeeds', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-
+    helperReturn({ ok: true, result: '0x1' })
     const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
     expect(result.success).toBe(true)
     expect(result.stage).toBe('APPROVE')
-    expect(result.revertReason).toBeUndefined()
-    expect(mockExecSync).toHaveBeenCalledOnce()
   })
 
-  it('includes --from flag with wallet address', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-
+  it('sends the wallet address as from', () => {
+    helperReturn({ ok: true })
     simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain('--rpc-url')
-    expect(call).toContain(RPC_URL)
-    expect(call).toContain(`--from ${WALLET}`)
+    expect(specOf().from.toLowerCase()).toBe(WALLET.toLowerCase())
   })
 
   it('uses default CONFIG.WALLET_ADDRESS when no from provided', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-
+    helperReturn({ ok: true })
     simulateApprove(TOKEN, POOL, 1000000n, RPC_URL)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain('--from 0x8Bb7870242e75132Fd62265cA8ABF771d49C821C')
+    expect(specOf().from.toLowerCase()).toBe(WALLET.toLowerCase())
   })
 
-  it('simulates against remote RPCs (no local-fork gate)', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
+  it('encodes approve(address,uint256) with spender and amount', () => {
+    helperReturn({ ok: true })
+    simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
+    const data = specOf().data
+    expect(data.startsWith('0x095ea7b3')).toBe(true)
+    expect(data.slice(10, 74)).toBe(POOL.toLowerCase().slice(2).padStart(64, '0'))
+    expect(BigInt('0x' + data.slice(74, 138))).toBe(1000000n)
+  })
 
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'https://mainnet.base.org', WALLET)
+  it('targets the token contract', () => {
+    helperReturn({ ok: true })
+    simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
+    expect(specOf().to.toLowerCase()).toBe(TOKEN.toLowerCase())
+  })
 
-    expect(result.success).toBe(true)
-    expect(mockExecSync).toHaveBeenCalledOnce()
+  it('passes the rpc url through in the spec', () => {
+    helperReturn({ ok: true })
+    simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
+    expect(specOf().rpcUrl).toBe(RPC_URL)
   })
 
   it('returns INVALID_RPC_URL for malformed RPC strings', () => {
-    const result = simulateApprove(TOKEN, POOL, 1000000n, '', WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('INVALID_RPC_URL')
+    for (const bad of ['127.0.0.1:18545', 'HTTP://127.0.0.1', 'ftp://x', '']) {
+      const result = simulateApprove(TOKEN, POOL, 1000n, bad, WALLET)
+      expect(result.success).toBe(false)
+      expect(result.revertReason).toBe('INVALID_RPC_URL')
+      expect(mockExecFileSync).not.toHaveBeenCalled()
+      mockExecFileSync.mockClear()
+    }
   })
 
-  it('parses revert reason from stderr', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: execution reverted: ERC20: insufficient balance'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
+  it('surfaces helper revert reasons', () => {
+    helperReturn({ ok: false, reason: 'ERC20: insufficient allowance' })
+    const result = simulateApprove(TOKEN, POOL, 1000n, RPC_URL, WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('ERC20: insufficient balance')
+    expect(result.revertReason).toBe('ERC20: insufficient allowance')
+    expect(result.rawOutput).toBe('ERC20: insufficient allowance')
   })
 
-  it('handles custom error revert reasons', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult("error: execution reverted with custom error 'InvalidAllowance()'"),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe("InvalidAllowance()")
-  })
-
-  it('returns UNKNOWN_REVERT for unparseable stderr', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('some random error without a revert pattern'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('UNKNOWN_REVERT')
-  })
-
-  it('captures duration on success', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
+  it('captures duration', () => {
+    helperReturn({ ok: true })
+    const result = simulateApprove(TOKEN, POOL, 1000n, RPC_URL, WALLET)
     expect(result.durationMs).toBeGreaterThanOrEqual(0)
-  })
-
-  it('includes rawOutput on failure', () => {
-    const stderr = 'error: execution reverted: ERC20: insufficient allowance'
-    mockExecSync.mockImplementationOnce(() => errorResult(stderr))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.rawOutput).toBe(stderr)
   })
 })
 
 describe('simulateRepay', () => {
   it('returns success when repay call succeeds', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-
-    const result = simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, RPC_URL, WALLET)
-
+    helperReturn({ ok: true, result: '0x1' })
+    const result = simulateRepay(POOL, TOKEN, 50000000n, 2, BORROWER, RPC_URL, WALLET)
     expect(result.success).toBe(true)
     expect(result.stage).toBe('REPAY')
   })
 
-  it('passes correct repay parameters', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-
-    simulateRepay(POOL, TOKEN, 500000n, 2, BORROWER, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(POOL)
-    expect(call).toContain('"repay(address,uint256,uint256,address)"')
-    expect(call).toContain(TOKEN)
-    expect(call).toContain('500000')
-    expect(call).toContain('2')
-    expect(call).toContain(BORROWER)
+  it('encodes repay(address,uint256,uint256,address) correctly', () => {
+    helperReturn({ ok: true })
+    simulateRepay(POOL, TOKEN, 50000000n, 2, BORROWER, RPC_URL, WALLET)
+    const data = specOf().data
+    expect(data.startsWith('0x573ade81')).toBe(true)
+    expect(data.slice(10, 74)).toBe(TOKEN.toLowerCase().slice(2).padStart(64, '0'))
+    expect(BigInt('0x' + data.slice(74, 138))).toBe(50000000n)
+    expect(BigInt('0x' + data.slice(138, 202))).toBe(2n)
+    expect(data.slice(202, 266)).toBe(BORROWER.toLowerCase().slice(2).padStart(64, '0'))
   })
 
-  it('simulates repay against remote RPCs (no local-fork gate)', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-
-    const result = simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, 'https://mainnet.base.org', WALLET)
-
-    expect(result.success).toBe(true)
-    expect(mockExecSync).toHaveBeenCalledOnce()
+  it('targets the pool contract', () => {
+    helperReturn({ ok: true })
+    simulateRepay(POOL, TOKEN, 50000000n, 2, BORROWER, RPC_URL, WALLET)
+    expect(specOf().to.toLowerCase()).toBe(POOL.toLowerCase())
   })
 
   it('handles repay revert', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: execution reverted: ERC20: insufficient allowance'),
-    )
-
-    const result = simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, RPC_URL, WALLET)
-
+    helperReturn({ ok: false, reason: 'ERC20: transfer amount exceeds allowance' })
+    const result = simulateRepay(POOL, TOKEN, 50000000n, 2, BORROWER, RPC_URL, WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('ERC20: insufficient allowance')
+    expect(result.revertReason).toContain('exceeds allowance')
+  })
+
+  it('returns INVALID_RPC_URL without spawning the helper', () => {
+    const result = simulateRepay(POOL, TOKEN, 1n, 2, BORROWER, 'no-protocol', WALLET)
+    expect(result.success).toBe(false)
+    expect(result.revertReason).toBe('INVALID_RPC_URL')
+    expect(mockExecFileSync).not.toHaveBeenCalled()
   })
 })
 
 describe('simulateFullMitigation', () => {
   it('returns success when approve and repay both pass', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
+    helperReturn({ ok: true })
+    const result = simulateFullMitigation(BORROWER, TOKEN, 50000000n, RPC_URL, WALLET)
     expect(result.success).toBe(true)
     expect(result.stage).toBe('FULL')
-    expect(mockExecSync).toHaveBeenCalledTimes(2)
+    expect(mockExecFileSync).toHaveBeenCalledTimes(2)
   })
 
   it('fails early when approve simulation fails', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: execution reverted: ERC20: insufficient balance'),
-    )
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
+    helperReturn({ ok: false, reason: 'TOKEN_NOT_DEPLOYED' })
+    const result = simulateFullMitigation(BORROWER, TOKEN, 50000000n, RPC_URL, WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toContain('APPROVE_FAILED')
-    expect(mockExecSync).toHaveBeenCalledTimes(1)
+    expect(result.revertReason).toBe('APPROVE_FAILED: TOKEN_NOT_DEPLOYED')
+    expect(mockExecFileSync).toHaveBeenCalledTimes(1)
   })
 
-  it('fails when repay simulation fails despite approve passing', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockImplementationOnce(() =>
-        errorResult('error: execution reverted: ERC20: insufficient allowance'),
-      )
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
+  it('fails when repay fails despite approve passing', () => {
+    mockExecFileSync
+      .mockReturnValueOnce(JSON.stringify({ ok: true }))
+      .mockReturnValueOnce(JSON.stringify({ ok: false, reason: 'ERC20: transfer amount exceeds balance' }))
+    const result = simulateFullMitigation(BORROWER, TOKEN, 50000000n, RPC_URL, WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toContain('REPAY_FAILED')
-    expect(mockExecSync).toHaveBeenCalledTimes(2)
-  })
-
-  it('simulates full mitigation against remote RPCs', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, 'https://mainnet.base.org', WALLET)
-
-    expect(result.success).toBe(true)
-    expect(mockExecSync).toHaveBeenCalledTimes(2)
+    expect(result.revertReason).toBe('REPAY_FAILED: ERC20: transfer amount exceeds balance')
+    expect(mockExecFileSync).toHaveBeenCalledTimes(2)
   })
 
   it('captures total duration across both calls', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
+    helperReturn({ ok: true })
+    const result = simulateFullMitigation(BORROWER, TOKEN, 50000000n, RPC_URL, WALLET)
     expect(result.durationMs).toBeGreaterThanOrEqual(0)
   })
 
-  it('handles zero repay amount', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
+  it('handles zero repay amount by still simulating (gate rejects zero separately)', () => {
+    helperReturn({ ok: true })
     const result = simulateFullMitigation(BORROWER, TOKEN, 0n, RPC_URL, WALLET)
-
     expect(result.success).toBe(true)
-  })
-})
-
-describe('edge cases', () => {
-  it('handles max uint256 amount', () => {
-    const maxUint = (1n << 256n) - 1n
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, maxUint, RPC_URL, WALLET)
-
-    expect(result.success).toBe(true)
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(maxUint.toString())
+    const second = specOf(1)
+    expect(BigInt('0x' + second.data.slice(74, 138))).toBe(0n)
   })
 
-  it('handles connection refused error', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('Error: connect ECONNREFUSED 127.0.0.1:18545'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('UNKNOWN_REVERT')
-  })
-
-  it('handles timeout error', () => {
-    mockExecSync.mockImplementationOnce(() => {
-      const err = new Error('Command timed out after 5000ms')
-      Object.defineProperty(err, 'stderr', { value: 'Timeout\n' })
-      throw err
-    })
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-  })
-
-  it('handles localhost prefix as local fork', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'http://localhost:8545', WALLET)
-
-    expect(result.success).toBe(true)
-  })
-
-  it('detects token not deployed (revert from cast)', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: execution reverted: ERC20: token not found at address 0xdead'),
-    )
-
-    const result = simulateApprove('0x0000000000000000000000000000000000000001', POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toContain('token not found')
-  })
-
-  it('simulates against any reachable remote RPC address', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-      .mockReturnValueOnce(successResult(''))
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, 'http://192.168.1.1:8545', WALLET)
-
-    expect(result.success).toBe(true)
-    expect(result.revertReason).toBeUndefined()
-  })
-})
-
-describe('gas estimation edge cases', () => {
-  it('extracts gasUsed from JSON stdout', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"gasUsed": "21000"}'))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(true)
-    expect(result.gasEstimate).toBe('21000')
-  })
-
-  it('handles gasUsed without whitespace after colon', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"gasUsed":"31000"}'))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.gasEstimate).toBe('31000')
-  })
-
-  it('handles gasUsed with multiple spaces after colon', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"gasUsed":  "41000"}'))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.gasEstimate).toBe('41000')
-  })
-
-  it('returns undefined gasEstimate when gasUsed field is missing', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"blockNumber": "123"}'))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(true)
-    expect(result.gasEstimate).toBeUndefined()
-  })
-
-  it('returns undefined gasEstimate when stdout is empty', () => {
-    mockExecSync.mockReturnValueOnce(successResult(''))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(true)
-    expect(result.gasEstimate).toBeUndefined()
-  })
-
-  it('extracts gasEstimate from first gasUsed when multiple matches exist', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"gasUsed": "51000"}{"gasUsed": "61000"}'))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.gasEstimate).toBe('51000')
-  })
-
-  it('extracts gasEstimate from non-JSON text containing gasUsed pattern', () => {
-    mockExecSync.mockReturnValueOnce(successResult('some text "gasUsed": "71000" more text'))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.gasEstimate).toBe('71000')
-  })
-
-  it('handles very large gasUsed values', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"gasUsed": "18446744073709551615"}'))
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.gasEstimate).toBe('18446744073709551615')
-  })
-
-  it('propagates gasEstimate from repay in simulateFullMitigation', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"gasUsed": "10000"}'))
-      .mockReturnValueOnce(successResult('{"gasUsed": "81000"}'))
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(true)
-    expect(result.gasEstimate).toBe('81000')
-  })
-
-  it('does not include gasEstimate from approve when repay fails', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"gasUsed": "10000"}'))
-      .mockImplementationOnce(() =>
-        errorResult('error: execution reverted: insufficient funds'),
-      )
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.gasEstimate).toBeUndefined()
-  })
-})
-
-describe('RPC URL edge cases', () => {
-  it('accepts localhost with different port (8545)', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'http://localhost:8545', WALLET)
-
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts 127.0.0.1 without explicit port', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'http://127.0.0.1', WALLET)
-
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts 127.0.0.1 with trailing slash', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'http://127.0.0.1:18545/', WALLET)
-
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts 127.0.0.1 with query parameter', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'http://127.0.0.1:18545?foo=bar', WALLET)
-
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts 127.0.0.1 with URL path', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'http://127.0.0.1/test', WALLET)
-
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects localhost:18545 without protocol prefix', () => {
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'localhost:18545', WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('INVALID_RPC_URL')
-  })
-
-  it('accepts http://localhost without port', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'http://localhost', WALLET)
-
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts https://127.0.0.1 as a remote RPC', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'https://127.0.0.1:18545', WALLET)
-
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects uppercase HTTP://LOCALHOST (scheme must be lowercase)', () => {
-    const result = simulateApprove(TOKEN, POOL, 1000000n, 'HTTP://LOCALHOST:8545', WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('INVALID_RPC_URL')
-  })
-
-  it('rejects empty RPC URL string', () => {
-    const result = simulateApprove(TOKEN, POOL, 1000000n, '', WALLET)
-
+  it('returns INVALID_RPC_URL for protocol-less urls', () => {
+    const result = simulateFullMitigation(BORROWER, TOKEN, 1n, '127.0.0.1:18545', WALLET)
     expect(result.success).toBe(false)
     expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 })
 
-describe('error edge cases', () => {
-  it('handles stderr with emoji characters', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: execution reverted: ❌ insufficient balance'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('❌ insufficient balance')
-  })
-
-  it('handles stderr with JSON error format', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('{"error": {"code": -32000, "message": "execution reverted"}}'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('UNKNOWN_REVERT')
-  })
-
-  it('handles stderr with HTML error page', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('<html><body><h1>502 Bad Gateway</h1></body></html>'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('UNKNOWN_REVERT')
-  })
-
-  it('handles Error without stderr property by falling back to message', () => {
-    mockExecSync.mockImplementationOnce(() => {
-      throw new Error('execution reverted: not enough funds')
-    })
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('not enough funds')
-  })
-
-  it('handles Error with null stderr by falling back to message', () => {
-    mockExecSync.mockImplementationOnce(() => {
-      const err = new Error('execution reverted: gas limit exceeded')
-      Object.defineProperty(err, 'stderr', { value: null })
-      throw err
-    })
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('gas limit exceeded')
-  })
-
-  it('handles empty string stderr', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult(''),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('UNKNOWN_REVERT')
-  })
-
-  it('handles mixed case revert reason with /i flag', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: EXECUTION REVERTED: ERC20: insufficient allowance'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('ERC20: insufficient allowance')
-  })
-
-  it('handles custom error with dollar signs and special regex characters', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult("error: execution reverted with custom error 'TransferFailed(0x$dead,100.5%)'"),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('TransferFailed(0x$dead,100.5%)')
-  })
-
-  it('handles -32000 code error with simple message', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('(code: -32000) message: out of gas'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('out of gas')
-  })
-
-  it('handles -32000 code error with multi-line message', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('(code: -32000)\nmessage: execution reverted\nreason: insufficient balance'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('execution reverted')
-  })
-
-  it('handles multiple error lines in stderr', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('Error: call failed\n\nerror: execution reverted: call depth exceeded'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('call depth exceeded')
-  })
-
-  it('handles execSync throwing a plain object', () => {
-    mockExecSync.mockImplementationOnce(() => {
-      throw { code: 1, message: 'something broke' }
-    })
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('UNKNOWN_REVERT')
-  })
-
-  it('handles execSync throwing a string', () => {
-    mockExecSync.mockImplementationOnce(() => {
-      throw 'cast call failed unexpectedly'
-    })
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('UNKNOWN_REVERT')
-  })
-
-  it('trims surrounding whitespace from revert reason', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: execution reverted:   insufficient balance   '),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('insufficient balance')
-  })
-
-  it('handles stderr with tab characters in revert reason', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: execution reverted: \tinsufficient\tbalance'),
-    )
-
-    const result = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('insufficient\tbalance')
-  })
-})
-
-describe('BigInt boundary tests', () => {
-  it('passes max uint256 amount to approve simulation', () => {
-    const maxUint = (1n << 256n) - 1n
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateApprove(TOKEN, POOL, maxUint, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(maxUint.toString())
-  })
-
-  it('passes max uint256 amount to repay simulation', () => {
-    const maxUint = (1n << 256n) - 1n
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, TOKEN, maxUint, 2, BORROWER, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(maxUint.toString())
-  })
-
-  it('passes minimum non-zero amount (1n) to approve', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateApprove(TOKEN, POOL, 1n, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain('1')
-  })
-
-  it('passes zero amount to repay simulation', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, TOKEN, 0n, 2, BORROWER, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(' 0 ')
-  })
-
-  it('passes negative bigint amount to approve simulation', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateApprove(TOKEN, POOL, -1n, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain('-1')
-  })
-
-  it('passes amount exceeding Number.MAX_SAFE_INTEGER to approve', () => {
-    const unsafe = BigInt(Number.MAX_SAFE_INTEGER) + 2n
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateApprove(TOKEN, POOL, unsafe, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(unsafe.toString())
-  })
-
-  it('passes 2^128 - 1 amount to repay simulation', () => {
-    const amount = (1n << 128n) - 1n
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, TOKEN, amount, 2, BORROWER, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(amount.toString())
-  })
-
-  it('passes 10^18 amount (1 token with 18 decimals) to approve', () => {
-    const amount = 10n ** 18n
-    mockExecSync.mockReturnValueOnce(successResult())
-
+describe('bigint and encoding boundaries', () => {
+  it.each([
+    ['max uint256', BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935')],
+    ['minimum non-zero', 1n],
+    ['2^128 - 1', BigInt('340282366920938463463374607431768211455')],
+    ['10^18', 10n ** 18n],
+    ['10^30', 10n ** 30n],
+    ['> Number.MAX_SAFE_INTEGER', BigInt('900719925474099312345')],
+  ])('round-trips %s amounts exactly', (_name, amount) => {
+    helperReturn({ ok: true })
     simulateApprove(TOKEN, POOL, amount, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain('1000000000000000000')
+    const data = specOf().data
+    expect(BigInt('0x' + data.slice(74, 138))).toBe(amount)
   })
 
-  it('passes 10^30 huge amount to repay simulation', () => {
-    const amount = 10n ** 30n
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, TOKEN, amount, 2, BORROWER, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(amount.toString())
-  })
-
-  it('passes negative bigint to repay and preserves minus sign in command', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, TOKEN, -1000000n, 2, BORROWER, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain('-1000000')
+  it('passes negative bigint through (invalid uint — the chain rejects it, we do not clamp)', () => {
+    helperReturn({ ok: true })
+    simulateApprove(TOKEN, POOL, -5n, RPC_URL, WALLET)
+    const data = specOf().data
+    expect(data.startsWith('0x095ea7b3')).toBe(true)
+    expect(data.slice(74)).toContain('-5')
   })
 })
 
-describe('simulateRepay specific', () => {
-  it('works with interestRateMode 1 (stable)', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateRepay(POOL, TOKEN, 1000000n, 1, BORROWER, RPC_URL, WALLET)
-
-    expect(result.success).toBe(true)
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(' 1 ')
-  })
-
-  it('passes invalid interestRateMode as cast argument without validation', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, TOKEN, 1000000n, 3 as 1 | 2, BORROWER, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(' 3 ')
-  })
-
-  it('handles very long onBehalfOf address', () => {
-    const longAddress = '0x' + 'a'.repeat(40)
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, TOKEN, 1000000n, 2, longAddress, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain(longAddress)
-  })
-
-  it('handles empty token address', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, '', 1000000n, 2, BORROWER, RPC_URL, WALLET)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain('repay')
-  })
-
-  it('captures gasEstimate from repay stdout', () => {
-    mockExecSync.mockReturnValueOnce(successResult('{"gasUsed": "91000"}'))
-
-    const result = simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, RPC_URL, WALLET)
-
-    expect(result.success).toBe(true)
-    expect(result.gasEstimate).toBe('91000')
-  })
-
-  it('handles custom error in repay simulation', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult("error: execution reverted with custom error 'RepayNotAllowed()'"),
-    )
-
-    const result = simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, RPC_URL, WALLET)
-
+describe('helper crash handling', () => {
+  it('maps execFileSync throw to SIMULATION_ERROR', () => {
+    mockExecFileSync.mockImplementation(() => { throw new Error('spawn failed\n  at ...') })
+    const result = simulateApprove(TOKEN, POOL, 1000n, RPC_URL, WALLET)
     expect(result.success).toBe(false)
-    expect(result.revertReason).toBe('RepayNotAllowed()')
+    expect(result.revertReason).toContain('SIMULATION_ERROR')
+    expect(result.revertReason).toContain('spawn failed')
   })
 
-  it('captures duration on successful repay', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    const result = simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, RPC_URL, WALLET)
-
-    expect(result.durationMs).toBeGreaterThanOrEqual(0)
-  })
-
-  it('uses default CONFIG.WALLET_ADDRESS when no from provided for repay', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-
-    simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, RPC_URL)
-
-    const call = mockExecSync.mock.calls[0]![0] as string
-    expect(call).toContain('--from 0x8Bb7870242e75132Fd62265cA8ABF771d49C821C')
+  it('maps helper timeout (execFileSync abort) to SIMULATION_ERROR', () => {
+    const err = new Error('Command timed out') as Error & { status?: unknown }
+    err.status = null
+    mockExecFileSync.mockImplementation(() => { throw err })
+    const result = simulateApprove(TOKEN, POOL, 1000n, RPC_URL, WALLET)
+    expect(result.success).toBe(false)
+    expect(result.revertReason).toContain('SIMULATION_ERROR')
   })
 })
 
-describe('simulateFullMitigation specific', () => {
-  it('captures duration from approve failure', () => {
-    mockExecSync.mockImplementationOnce(() =>
-      errorResult('error: execution reverted: ERC20: insufficient balance'),
-    )
+// --- live helper tests against a real chain ---
+// NOTE: the helper is a separate process, and sandboxed environments may forbid
+// loopback between ancestor/pro descendant trees, so we do NOT host a fake
+// JSON-RPC server here. When a real fork (anvil) is reachable — the normal
+// local demo setup — the helper is exercised end-to-end against it; otherwise
+// these tests skip. The two tests at the bottom run everywhere.
+// Probed at collection time — skipIf() reads it before hooks run.
+const FORK_URL = process.env.LAX_FORK_RPC ?? 'http://127.0.0.1:18545'
+const forkLive = await fetch(FORK_URL, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
+  signal: AbortSignal.timeout(2000),
+}).then((r) => r.ok).catch(() => false)
 
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
+describe('preflight-call.mjs helper (live subprocess)', () => {
+  function runHelper(spec: object): string {
+    // direct import so the child_process mock above does not intercept this
+    const { execFileSync } = require('node:child_process') as typeof import('node:child_process')
+    const { fileURLToPath } = require('node:url') as typeof import('node:url')
+    const { dirname, join } = require('node:path') as typeof import('node:path')
+    const helper = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'preflight-call.mjs')
+    return execFileSync(process.execPath, [helper, JSON.stringify(spec)], { encoding: 'utf-8', timeout: 10_000 })
+  }
 
-    expect(result.success).toBe(false)
-    expect(result.durationMs).toBeGreaterThanOrEqual(0)
+  it.skipIf(!forkLive)('returns a hex result for a live view call', () => {
+    // getUserAccountData on the live Aave fork — real end-to-end helper run
+    const calldata = '0xbf92857c' + 'f39fd6e51aad88f6f4ce6ab8827279cfffb92266'.padStart(64, '0')
+    const out = runHelper({ rpcUrl: FORK_URL, from: WALLET, to: POOL, data: calldata })
+    const parsed = JSON.parse(out) as { ok: boolean; result?: string }
+    expect(parsed.ok).toBe(true)
+    expect(parsed.result).toMatch(/^0x[0-9a-f]+$/)
+    expect(parsed.result!.length).toBe(2 + 6 * 64)
   })
 
-  it('captures total duration when repay fails after approve passes', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockImplementationOnce(() =>
-        errorResult('error: execution reverted: insufficient funds'),
-      )
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.durationMs).toBeGreaterThanOrEqual(0)
+  it.skipIf(!forkLive)('surfaces a real revert reason from the chain', () => {
+    // repay with onBehalfOf = the wallet (which has no debt) reverts on-chain
+    const repayData = '0x573ade81'
+      + '833589fcd6edb6e08f4c7c32d4f71b54bda02913'.padStart(64, '0')
+      + (32401283n).toString(16).padStart(64, '0')
+      + (2n).toString(16).padStart(64, '0')
+      + WALLET.toLowerCase().slice(2).padStart(64, '0')
+    const out = runHelper({ rpcUrl: FORK_URL, from: WALLET, to: POOL, data: repayData })
+    const parsed = JSON.parse(out) as { ok: boolean; reason?: string }
+    expect(parsed.ok).toBe(false)
+    expect(parsed.reason).toBeTruthy()
   })
 
-  it('propagates gasEstimate from repay on full success', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult('{"gasUsed": "101000"}'))
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(true)
-    expect(result.gasEstimate).toBe('101000')
+  it('flags unreachable RPCs as RPC_UNREACHABLE', () => {
+    const out = runHelper({ rpcUrl: 'http://127.0.0.1:1', from: WALLET, to: TOKEN, data: '0x095ea7b3' + '0'.repeat(128), timeoutMs: 2000 })
+    const parsed = JSON.parse(out) as { ok: boolean; reason?: string }
+    expect(parsed.ok).toBe(false)
+    expect(parsed.reason).toContain('RPC_UNREACHABLE')
   })
 
-  it('includes rawOutput from approve failure in full result', () => {
-    const stderr = 'error: execution reverted: ERC20: insufficient balance'
-    mockExecSync.mockImplementationOnce(() => errorResult(stderr))
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.rawOutput).toBe(stderr)
-  })
-
-  it('includes rawOutput from repay failure in full result', () => {
-    const stderr = 'error: execution reverted: ERC20: insufficient allowance'
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockImplementationOnce(() => errorResult(stderr))
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    expect(result.success).toBe(false)
-    expect(result.rawOutput).toBe(stderr)
-  })
-
-  it('uses same from address for both approve and repay calls', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    const approveCall = mockExecSync.mock.calls[0]![0] as string
-    const repayCall = mockExecSync.mock.calls[1]![0] as string
-    expect(approveCall).toContain(`--from ${WALLET}`)
-    expect(repayCall).toContain(`--from ${WALLET}`)
-  })
-
-  it('passes same repay amount to both approve and repay calls', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    simulateFullMitigation(BORROWER, TOKEN, 7777777n, RPC_URL, WALLET)
-
-    const approveCall = mockExecSync.mock.calls[0]![0] as string
-    const repayCall = mockExecSync.mock.calls[1]![0] as string
-    expect(approveCall).toContain('7777777')
-    expect(repayCall).toContain('7777777')
-  })
-
-  it('passes execSync with encoding utf-8 option', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    const options1 = mockExecSync.mock.calls[0]![1] as { encoding: string }
-    const options2 = mockExecSync.mock.calls[1]![1] as { encoding: string }
-    expect(options1.encoding).toBe('utf-8')
-    expect(options2.encoding).toBe('utf-8')
-  })
-
-  it('passes timeout option to execSync calls', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    const options1 = mockExecSync.mock.calls[0]![1] as { timeout: number }
-    const options2 = mockExecSync.mock.calls[1]![1] as { timeout: number }
-    expect(options1.timeout).toBe(5000)
-    expect(options2.timeout).toBe(5000)
-  })
-
-  it('returns stage FULL on full success', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    const result = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    expect(result.stage).toBe('FULL')
-  })
-})
-
-describe('stress tests', () => {
-  it('handles 1000 rapid simulateApprove calls in a loop', () => {
-    mockExecSync.mockImplementation(() => successResult())
-
-    for (let i = 0; i < 1000; i++) {
-      const result = simulateApprove(TOKEN, POOL, BigInt(i) * 1000n, RPC_URL, WALLET)
-      expect(result.success).toBe(true)
-    }
-
-    expect(mockExecSync).toHaveBeenCalledTimes(1000)
-  })
-
-  it('handles 500 rapid simulateRepay calls in a loop', () => {
-    mockExecSync.mockImplementation(() => successResult())
-
-    for (let i = 0; i < 500; i++) {
-      const result = simulateRepay(POOL, TOKEN, BigInt(i) * 1000n, 2, BORROWER, RPC_URL, WALLET)
-      expect(result.success).toBe(true)
-    }
-
-    expect(mockExecSync).toHaveBeenCalledTimes(500)
-  })
-
-  it('handles 500 rapid simulateFullMitigation calls in a loop', () => {
-    mockExecSync.mockImplementation(() => successResult())
-
-    for (let i = 0; i < 500; i++) {
-      const result = simulateFullMitigation(BORROWER, TOKEN, BigInt(i) * 1000n, RPC_URL, WALLET)
-      expect(result.success).toBe(true)
-    }
-
-    expect(mockExecSync).toHaveBeenCalledTimes(1000)
-  })
-
-  it('handles 1000 calls with different amounts each', () => {
-    mockExecSync.mockImplementation(() => successResult())
-
-    for (let i = 0; i < 1000; i++) {
-      const amount = BigInt(i + 1) * 1000000n
-      const result = simulateApprove(TOKEN, POOL, amount, RPC_URL, WALLET)
-      expect(result.success).toBe(true)
-    }
-
-    const firstCall = mockExecSync.mock.calls[0]![0] as string
-    const lastCall = mockExecSync.mock.calls[999]![0] as string
-    expect(firstCall).toContain('1000000')
-    expect(lastCall).toContain('1000000000')
-  })
-
-  it('handles mixed success and failure patterns in a loop', () => {
-    for (let i = 0; i < 300; i++) {
-      if (i % 3 === 0) {
-        mockExecSync.mockImplementationOnce(() =>
-          errorResult('error: execution reverted: insufficient balance'),
-        )
-      } else {
-        mockExecSync.mockImplementationOnce(() => successResult())
-      }
-    }
-
-    for (let i = 0; i < 300; i++) {
-      const result = simulateApprove(TOKEN, POOL, BigInt(i) * 1000n, RPC_URL, WALLET)
-      if (i % 3 === 0) {
-        expect(result.success).toBe(false)
-        expect(result.revertReason).toBe('insufficient balance')
-      } else {
-        expect(result.success).toBe(true)
-      }
-    }
-
-    expect(mockExecSync).toHaveBeenCalledTimes(300)
-  })
-
-  it('rapidly switches between approve, repay, and full mitigation', () => {
-    mockExecSync.mockImplementation(() => successResult())
-
-    for (let i = 0; i < 200; i++) {
-      if (i % 3 === 0) {
-        const r = simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-        expect(r.stage).toBe('APPROVE')
-      } else if (i % 3 === 1) {
-        const r = simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, RPC_URL, WALLET)
-        expect(r.stage).toBe('REPAY')
-      } else {
-        const r = simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-        expect(r.stage).toBe('FULL')
-      }
-    }
-  })
-
-  it('verifies execSync call count integrity across many simulations', () => {
-    mockExecSync.mockImplementation(() => successResult())
-
-    for (let i = 0; i < 100; i++) {
-      simulateApprove(TOKEN, POOL, 1000000n, RPC_URL, WALLET)
-    }
-    expect(mockExecSync).toHaveBeenCalledTimes(100)
-    vi.clearAllMocks()
-
-    mockExecSync.mockImplementation(() => successResult())
-    for (let i = 0; i < 100; i++) {
-      simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, RPC_URL, WALLET)
-    }
-    expect(mockExecSync).toHaveBeenCalledTimes(100)
-  })
-})
-
-describe('architecture invariants', () => {
-  it('simulateFullMitigation calls approve before repay', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    const firstCall = mockExecSync.mock.calls[0]![0] as string
-    const secondCall = mockExecSync.mock.calls[1]![0] as string
-    expect(firstCall).toContain('"approve(address,uint256)"')
-    expect(secondCall).toContain('"repay(address,uint256,uint256,address)"')
-  })
-
-  it('simulateFullMitigation passes same from address to both approve and repay', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    const firstCall = mockExecSync.mock.calls[0]![0] as string
-    const secondCall = mockExecSync.mock.calls[1]![0] as string
-    const fromPattern = new RegExp(`--from ${WALLET}$`)
-    expect(firstCall).toMatch(fromPattern)
-    expect(secondCall).toMatch(fromPattern)
-  })
-
-  it('simulateFullMitigation passes same amount to approve and repay', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    simulateFullMitigation(BORROWER, TOKEN, 123456789n, RPC_URL, WALLET)
-
-    const firstCall = mockExecSync.mock.calls[0]![0] as string
-    const secondCall = mockExecSync.mock.calls[1]![0] as string
-    const amountStr = '123456789'
-    expect(firstCall).toContain(amountStr)
-    expect(secondCall).toContain(amountStr)
-  })
-
-  it('simulateFullMitigation uses rateMode 2 for repay (hardcoded constant)', () => {
-    mockExecSync.mockReturnValueOnce(successResult())
-      .mockReturnValueOnce(successResult())
-
-    simulateFullMitigation(BORROWER, TOKEN, 1000000n, RPC_URL, WALLET)
-
-    const approveCall = mockExecSync.mock.calls[0]![0] as string
-    const repayCall = mockExecSync.mock.calls[1]![0] as string
-    const rateModePortion = repayCall.split('--rpc-url')[0] as string
-    expect(rateModePortion).toContain(' 2 ')
-    expect(approveCall).not.toContain(' 2 ')
-  })
-
-  it('INVALID_RPC_URL guard prevents execSync for malformed URLs only', () => {
-    // Remote/valid RPCs proceed to the simulator (no fork ceiling anymore).
-    simulateApprove(TOKEN, POOL, 1000000n, 'localhost:18545', WALLET)
-    expect(mockExecSync).not.toHaveBeenCalled()
-    vi.clearAllMocks()
-
-    simulateRepay(POOL, TOKEN, 1000000n, 2, BORROWER, 'not-a-url', WALLET)
-    expect(mockExecSync).not.toHaveBeenCalled()
-    vi.clearAllMocks()
-
-    simulateFullMitigation(BORROWER, TOKEN, 1000000n, '', WALLET)
-    expect(mockExecSync).not.toHaveBeenCalled()
+  it('rejects protocol-less rpc urls', () => {
+    const out = runHelper({ rpcUrl: '127.0.0.1:18545', from: WALLET, to: TOKEN, data: '0x095ea7b3' + '0'.repeat(128) })
+    const parsed = JSON.parse(out) as { ok: boolean; reason?: string }
+    expect(parsed.ok).toBe(false)
+    expect(parsed.reason).toBe('INVALID_RPC_URL')
   })
 })

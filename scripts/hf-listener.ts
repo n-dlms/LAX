@@ -1,5 +1,11 @@
+// Legacy one-shot listener — kept for the 8-beat runbook and CI pipelines.
+// The primary trigger path is now `lax autopilot` (src/autopilot/daemon.ts),
+// which adds hysteresis, cooldown, the mitigation gate, and persistent logs.
+// This listener routes through the same gate and KeeperHub client, so every
+// fire path shares identical safety checks.
 import { CONFIG, getBorrowerAddress } from '../src/config.js'
 import { hfToBigint, hfToNumber, computeRepayAmount, usdcToString } from '../src/repay-math.js'
+import { runMitigationGate } from '../src/autopilot/gate.js'
 import { ethers } from 'ethers'
 
 const POOL_ABI = [
@@ -8,6 +14,19 @@ const POOL_ABI = [
 
 const POLL_MS = CONFIG.LISTENER_POLL_MS
 const ONE_SHOT = true
+
+interface UserAccountData {
+  totalCollateralBase: bigint
+  totalDebtBase: bigint
+  availableBorrowsBase: bigint
+  currentLiquidationThreshold: bigint
+  ltv: bigint
+  healthFactor: bigint
+}
+
+interface AavePoolInterface {
+  getUserAccountData(user: string): Promise<UserAccountData>
+}
 
 async function fireWebhook(
   hf: bigint,
@@ -43,17 +62,32 @@ async function fireWebhook(
   return data.executionId
 }
 
-interface UserAccountData {
-  totalCollateralBase: bigint
-  totalDebtBase: bigint
-  availableBorrowsBase: bigint
-  currentLiquidationThreshold: bigint
-  ltv: bigint
-  healthFactor: bigint
-}
+async function fireAfterGate(
+  hf: bigint,
+  address: string,
+  debt: bigint,
+  repayAmount: bigint,
+  rpcUrl: string,
+): Promise<string> {
+  const gate = runMitigationGate({
+    totalDebtBase: debt,
+    currentHf: hf,
+    targetHf: hfToBigint(CONFIG.HF.TARGET),
+    repayAmount,
+    borrowerAddress: address,
+    poolAddress: CONFIG.AAVE_POOL,
+    repayToken: CONFIG.USDC,
+    rpcUrl,
+  })
 
-interface AavePoolInterface {
-  getUserAccountData(user: string): Promise<UserAccountData>
+  for (const stage of gate.stages) {
+    console.error(`  gate ${stage.passed ? '✓' : '✗'} ${stage.name}: ${stage.detail}`)
+  }
+  if (!gate.approved) {
+    throw new Error(`Mitigation gate blocked the fire (${gate.summary}) — nothing was executed`)
+  }
+
+  return fireWebhook(hf, address, debt, repayAmount)
 }
 
 async function main(): Promise<void> {
@@ -87,7 +121,7 @@ async function main(): Promise<void> {
         console.error(`Repay: ${exactAmount} exact, ${repayAmount} with 1% buffer (${usdcToString(repayAmount)} USDC)`)
 
         if (CONFIG.WORKFLOW_ID) {
-          await fireWebhook(hf, borrower, data.totalDebtBase, repayAmount)
+          await fireAfterGate(hf, borrower, data.totalDebtBase, repayAmount, rpcUrl)
         } else {
           console.error('WORKFLOW_ID not configured — webhook not fired')
         }
@@ -101,13 +135,14 @@ async function main(): Promise<void> {
       }
     } catch (err) {
       console.error(`ERROR: ${err instanceof Error ? err.message : err}`)
+      if (ONE_SHOT) process.exit(1)
     }
 
     await new Promise((r) => setTimeout(r, POLL_MS))
   }
 }
 
-export { fireWebhook }
+export { fireWebhook, fireAfterGate }
 
 if (process.argv[1]?.endsWith('hf-listener.ts') || process.argv[1]?.endsWith('hf-listener.js')) {
   main().catch((err) => {
