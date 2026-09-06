@@ -19,21 +19,25 @@ HF ≤ 1.05 (classification `act`), with a real debt position.
    buffer for on-chain rounding. Convert to USDC (6 decimals).
    - `computeRepayAmount(totalDebtBase, hfCurrent, hfTarget)`
 2. **Dry-run / preflight** (`src/preflight-simulator.ts`):
-   simulate approve + repay via `cast call` against the RPC. This now works on
-   remote RPCs too (P1 fix). If the simulation reverts, do NOT proceed.
-3. **Critique gate** (`src/critique-agent.ts`):
-   verify the math, the simulation, and the safety bounds (repay ≤ $10 block
-   threshold, ≤ $5 daily limit, only `approve` selector allowed). If any stage
-   fails, block execution and escalate.
-4. **Trigger the KeeperHub workflow** via webhook:
+   simulate approve + repay via a pure Node JSON-RPC helper (no Foundry needed)
+   against the RPC. If the simulation reverts, do NOT proceed.
+3. **Mitigation gate** (`src/autopilot/gate.ts` wrapping `src/critique-agent.ts`):
+   verify the math, the simulation, and the safety bounds (block/daily spend
+   caps, only the `approve` selector allowed; size caps via
+   `LAX_BLOCK_THRESHOLD_USD` / `LAX_DAILY_LIMIT_USD`).
+   **The gate is now wired into every fire path** — `lax autopilot`, `lax engage`,
+   and the legacy listener all call `runMitigationGate()` before any webhook.
+   If any stage fails, the fire is blocked and logged; escalate.
+4. **Trigger the KeeperHub workflow** via webhook (use `src/keeperhub.ts` —
+   it signs the payload when `LAX_WEBHOOK_SECRET` is set and is verified by
+   `api/keeperhub-proxy.ts`):
    `POST https://app.keeperhub.com/api/workflows/{id}/webhook`
    with `Authorization: Bearer <wfb_ key>` and body:
    `{ health_factor, user_address, repay_amount_usdc, repay_amount_human }`.
    - The workflow then runs: read HF → approve USDC → repay → verify HF.
-   - ⚠️ Platform limitation: the repay amount is currently **static** in the
-     workflow (dynamic `{{...}}` uint256 refs are rejected). Set the amount to
-     the computed value before triggering, or trigger with the amount the
-     workflow expects.
+   - The exact amount is computed at fire time and passed in the payload
+     (`repayAmount`), so the workflow's static amount is always fresh at trigger
+     (V2 fix #2 for the dynamic `{{...}}` uint256 platform limitation).
 5. **Poll the audit trail**: `GET /api/workflows/executions/{id}/logs` (or
    `kh run status`). Confirm `status: success` and a verified `transactionHashes`
    entry. Record the basescan link.

@@ -9,7 +9,7 @@
 | **Build Phase** | Sep 6 – Sep 18, 2026 · Submissions close Sep 18, 12:00 CEST · Winners Sep 24/25 |
 | **Tracks** | Main: Best Integration into a Live Project ($4,000) · Bounty: Best KeeperHub Feature ($1,000, stacks) |
 | **Stack** | OpenCode + NVIDIA NIM + KeeperHub MCP + Aave V3 Plugin |
-| **Phase** | Core build complete (Agents Onchain 2026) — retargeting to The Agent Economy |
+| **Phase** | V2 — standalone Liquidation CLI + autopilot daemon (build log: `docs/cli_phase/V2-BUILD-PLAN.md`) |
 
 > **Gas sponsorship note:** the `AgentsOnchain2026` tag from the previous event is retired.
 > The new event's sponsorship tag is not yet published — confirm it in the KeeperHub
@@ -18,10 +18,63 @@
 
 ## What It Does
 
-1. Listens for health factor changes on your Aave V3 positions
-2. When health factor drops below your configured threshold, triggers a mitigation action (repay debt / supply more collateral)
-3. Executes the transaction onchain through KeeperHub — gas-optimized, MEV-protected, audited
-4. Logs every action to the audit trail with transaction hashes, gas used, and outcome
+1. `lax autopilot` monitors the health factor of every position in `lax.config.json` (multi-position, per-position thresholds)
+2. When HF drops to the trigger threshold, the **mitigation gate** runs three independent checks — HF-math verification, a preflight simulation of approve+repay, and safety bounds (block/daily spend caps) — nothing fires unless all pass
+3. The exact repay amount is computed **at fire time** and passed in the HMAC-signed webhook payload; KeeperHub executes deterministically — read HF → approve → repay → verify — with the Turnkey agentic wallet, MEV-protected private routing, and a full audit trail
+4. Every trigger, gate decision, and fire is appended to `~/.lax/mitigations.jsonl` and visible via `lax runs` / `app.keeperhub.com/runs/<id>`
+
+## The Liquidation CLI
+
+One zero-dependency binary, two surfaces (standalone terminal + the dashboard's
+embedded terminal share the same command core):
+
+```bash
+npm run lax -- status     # HF gauge + position + guardian state, color-coded danger border
+npm run lax -- arm        # arm the autopilot (persisted across restarts)
+npm run lax -- autopilot daemon        # continuous defense
+npm run lax -- autopilot daemon --dry-run   # full pipeline, never fires
+lax repay 5 --local       # onchain actions via the agentic wallet
+lax runs / lax audit      # execution records + audit trail
+```
+
+Interactive REPL: `npm run lax`. Piped scripting works too: `echo "status\nruns" | npm run lax`.
+Safety state, spend caps, and the mitigation log persist in `~/.lax/`.
+
+**One command brings the whole demo up** (fork, seeded position, funded wallet,
+health check — idempotent and self-healing if saved fork state is corrupt):
+
+```bash
+./scripts/demo-up.sh
+```
+
+## Live Fire (Base Sepolia — judge-safe, real transactions)
+
+The deterministic fork demo never touches real funds. The **live path** runs on
+Base Sepolia (chain 84532) with sponsored gas and tiny amounts — a real
+webhook-triggered workflow executing read HF → approve → repay → verify:
+
+```bash
+./scripts/fire-sepolia.sh     # one real fire, prints audit trail + tx links
+```
+
+Actual verified run (submission evidence):
+
+| Artifact | Link |
+|---|---|
+| Audit trail | https://app.keeperhub.com/runs/9bc31ofdfca1m62b2v29t |
+| Repay tx (debt 0.7002 → 0.4002 USDC) | https://sepolia.basescan.org/tx/0x918441fcd4d2071733afc139ed0b5c29cba34ddeefc2ca1583499b10827c8bac |
+| Approve tx | https://sepolia.basescan.org/tx/0xd15cc2c844ea4a0dd50e0878d6819dcff116f48e98f7e2489e6d96679fca2e88 |
+
+**Any Turnkey agentic wallet works** — LAX resolves the executing wallet from
+`LAX_WALLET_ADDRESS` → `~/.keeperhub/wallet.json` → config, never a hardcoded
+address. By default the wallet defends its own position
+(`LAX_SELF_DEFENSE=true`) or any address via `LAX_BORROWER_ADDRESS`.
+The live-fire autopilot daemon:
+
+```bash
+LAX_WORKFLOW_ID=<sepolia-workflow-id> LAX_BORROWER_ADDRESS=<position-owner> \
+  npm run lax -- autopilot daemon
+```
 
 ## The Agent
 
@@ -31,7 +84,7 @@ agent's brain lives in [`agent/`](agent/):
 
 - [`agent/SYSTEM_PROMPT.md`](agent/SYSTEM_PROMPT.md) — the guardian's standing orders and hard constraints
 - [`agent/skills/`](agent/skills/) — runnable procedures: monitor health factor, trigger mitigation, fund position
-- [`agent/RUNBOOK.md`](agent/RUNBOOK.md) — the 8-beat live demo sequence
+- [`agent/RUNBOOK.md`](agent/RUNBOOK.md) — the live demo sequence built around `lax autopilot`
 
 Wired into [`.opencode.jsonc`](opencode.jsonc) as the `lax-guardian` agent (system prompt + skills).
 
@@ -39,7 +92,7 @@ Wired into [`.opencode.jsonc`](opencode.jsonc) as the `lax-guardian` agent (syst
 
 - [ ] GitHub Repo (this repo — replace placeholder link)
 - [ ] Demo video showing the integration working
-- [ ] Link to a transaction executed through KeeperHub
+- [x] Link to a transaction executed through KeeperHub (Sepolia repay, table above)
 - [ ] Form: integrated project = **Aave V3** (live, deployed protocol on Base + 20+ networks)
 - [ ] Form: KeeperHub surfaces used — MCP (aggregate + per-workflow), agentic wallet, Aave V3 plugin, webhook trigger, `get_execution_logs` audit trail, gas sponsorship + wallet-pays fallback
 - [ ] Form: candid "what still breaks" answer
@@ -56,6 +109,14 @@ mergeable-scoped, tested workarounds today:
 | Document / default `onBehalfOf` in Aave V3 repay | C2 | Docs + optional param defaulting to executing wallet |
 | `autoApprove` option on Supply/RepayDebt actions | L3 | Collapses 2-node workflows to 1 |
 | Gas sponsorship error code reference | M3 | Docs for `GAS_SPONSORSHIP_*` variants |
+
+## Verified Testing
+
+Everything claimed in this README was executed and verified — see
+[`docs/VERIFIED-TESTING.md`](docs/VERIFIED-TESTING.md) for the full log: the live-fire
+evidence (on-chain before/after), the gate's real blocking outcomes, the CLI command
+battery, daemon modes, the 464-test suite, and the nine real bugs the verification
+found and fixed.
 
 ## Judging Criteria Trace (The Agent Economy — main track rubric)
 

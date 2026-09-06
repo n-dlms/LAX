@@ -87,6 +87,14 @@ tokenConfig: JSON.stringify({ mode: 'custom', customToken: { address: '0x...', s
 **Workaround**: Use the format `https://app.keeperhub.com/api/workflows/{WORKFLOW_ID}/webhook` with `Content-Type: application/json` and `Authorization: Bearer <api_key>`.
 **Suggested fix**: Document the webhook trigger URL format in the workflow trigger node documentation. Include the required headers (`Authorization`, `Content-Type`) and the expected payload shape.
 
+**Update (2026-09-06, event: The Agent Economy)**: the endpoint format is confirmed working
+(`POST /api/workflows/{id}/webhook`), and the key-type requirement is now well-documented
+by the API itself: org keys (`kh_*`) are rejected with a precise, actionable error —
+`{"error":"wrong_key_type", "expected":"wfb_*", "hint":"Generate a webhook key from
+Settings > Developer > API keys > Webhook keys"}`. Resolved end-to-end during the verified
+live fire (see `docs/VERIFIED-TESTING.md` §1); the endpoint needs no further workaround —
+only the webhook-key documentation suggestion still stands.
+
 ---
 
 ### H3: Webhook payload shape undocumented

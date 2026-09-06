@@ -31,6 +31,17 @@ You'll be prompted for your KeeperHub API key. Paste it in, and the script handl
 6. Seeding mock oracle + USDC
 7. Opening the dashboard at `http://localhost:5173`
 
+## Daily Demo Boot (one command)
+
+```bash
+./scripts/demo-up.sh
+```
+
+Idempotent and self-healing: boots the Anvil fork of Base (or reuses a live one),
+seeds the Aave position (skips if already seeded), funds the agentic wallet, and
+health-checks the position read. If saved fork state is corrupt it rebuilds
+automatically.
+
 ## Manual Setup
 
 If you prefer step-by-step:
@@ -39,35 +50,36 @@ If you prefer step-by-step:
 # 1. Install dependencies
 npm install
 
-# 2. Configure API key
+# 2. Configure keys
 cp .env.example .env
-# Edit .env with your KEEPERHUB_API_KEY
+# Edit .env: KEEPERHUB_API_KEY (kh_*), KEEPERHUB_WEBHOOK_KEY (wfb_*, for live fires)
 
-# 3. Authenticate
-kh auth login --with-token "$(grep KEEPERHUB_API_KEY .env | cut -d= -f2)"
+# 3. Boot the fork, seed the position, fund the wallet
+./scripts/demo-up.sh
 
-# 4. Provision wallet
-kh wallet add --name "lax-bot"
+# 4. The Liquidation CLI (loads .env automatically)
+npm run lax -- status        # HF gauge, live fork data
+npm run lax                  # interactive REPL
 
-# 5. Deploy workflow
-./scripts/deploy-workflow.sh
+# 5. Autopilot daemon (dry-run needs no keys; live fires the workflow)
+npm run lax -- autopilot daemon --dry-run
+npm run lax -- autopilot daemon
 
-# 6. Start fork + seed
-./scripts/start-fork.sh
-./scripts/fork-setup-usdc.sh
-
-# 7. Start dashboard (separate terminal)
-cd dashboard && npm install && npx vite --host 0.0.0.0 --port 5173
-
-# 8. Start HF listener (separate terminal)
-npx tsx scripts/hf-listener.ts
+# 6. Dashboard (separate terminal)
+cd dashboard && npm install && node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173
 ```
 
 ## Demo Flow
 
-1. Open `http://localhost:5173` — MonitorView shows HF ~1.10
-2. Simulate a price crash: `./scripts/drop-oracle-price.sh -28`
-3. Watch the HF bar drop from green → yellow → red
+1. Open `http://localhost:5173` — MonitorView shows HF ~1.10 (green)
+2. `npm run lax -- arm` — arm the guardian
+3. `npm run lax -- autopilot daemon` — boot the daemon (second terminal)
+4. Simulate a price crash: `./scripts/drop-oracle-price.sh -28`
+5. Watch the gate stages approve the fire, then the KeeperHub execution ID print
+6. `./scripts/fire-sepolia.sh` — one real transaction on Base Sepolia (submission evidence)
+
+The full verified-testing log (what was executed and what worked, with on-chain
+evidence) is in [VERIFIED-TESTING.md](VERIFIED-TESTING.md).
 4. At HF ≤ 1.05, the dashboard auto-switches to MitigationView
 5. Steps animate: Approve → Repay → Verify HF restored to ≥ 1.10
 6. AuditView shows execution summary + KeeperHub link

@@ -1,38 +1,53 @@
 # LAX Demo Runbook
 
-The 8-beat live sequence for the demo laptop. Each beat is a step the operator
-(or the agent) drives; the whole thing fits in ~70 seconds.
+The live sequence for the demo laptop. The centerpiece is `lax autopilot`:
+boot the daemon, crash the oracle on the fork, and watch the gate approve and
+KeeperHub execute — nothing typed during the crash. Fits in ~90 seconds.
 
 ## Setup (before the demo)
 
-1. `./scripts/start-fork.sh` — boot the Anvil fork of Base mainnet (`127.0.0.1:18545`)
-2. `./scripts/fork-setup-usdc.sh` — seed oracle prices + USDC
-3. `npx tsx scripts/hf-listener.ts [borrower]` — start the HF monitor (CLI arg =
-   position; default from `LAX_BORROWER_ADDRESS`/config)
-4. `cd src/dashboard && npx vite --host 127.0.0.1` — dashboard at `http://localhost:5173`
-5. Ensure the KeeperHub workflow `lax-liquidation-armor` is deployed and enabled.
+1. `./scripts/demo-up.sh` — one command: boot fork, seed position, fund wallet, health check
+   (idempotent; re-running is always safe)
+2. `export KEEPERHUB_API_KEY=<key>` (in `.env`) — so the daemon can fire the workflow
+3. Optional: `npx tsx bin/lax.ts` — the interactive CLI REPL for manual beats
+
+Optional fallback (legacy one-shot): `npx tsx scripts/hf-listener.ts`
 
 ## Beats
 
 | Beat | Action | Expected |
 |---|---|---|
-| 0 | Boot all processes | Dashboard shows HF ~1.10, listener IDLE |
-| 1 | `./scripts/drop-oracle-price.sh -28` | Oracle drops → HF falls toward 1.05 |
-| 2 | Watch the HF bar green → yellow → red | Listener logs IDLE → watch |
-| 3 | HF ≤ 1.05 | Listener fires the KeeperHub webhook |
-| 4 | Workflow runs: read HF → approve → repay → verify | Execution ID returned |
-| 5 | `kh run status <id>` / audit trail | `status: success`, verified tx hash |
-| 6 | Dashboard AuditView | Shows execution summary + `app.keeperhub.com/runs/<id>` link |
-| 7 | Re-read HF | HF restored to ≥ 1.10 (position secured) |
+| 0 | `npm run lax -- status` | Banner, HF gauge green (`SAFE — LAX ARMED ZONE`), box border cyan |
+| 1 | `npm run lax -- arm` | `ARMED — auto-trigger enabled` (persisted in `~/.lax/state.json`) |
+| 2 | `npm run lax -- autopilot daemon` | Daemon header: LIVE mode, position list, cooldown |
+| 3 | `./scripts/drop-oracle-price.sh -28` (2nd terminal) | Oracle drops → HF falls toward 1.05 |
+| 4 | Watch daemon log flip | `✔ HF 1.0xxx — above trigger` → `⚡ TRIGGER HF ≤ 1.05 — repay 32.40 USDC` |
+| 5 | Gate stages print | `✔ HF Math Verification` → `✔ Pre-flight Simulation` → `✔ Safety Bounds` → `✔ spend-caps` |
+| 6 | Fire | `🗲 fired → execution <id>` + `audit trail: app.keeperhub.com/runs/<id>` |
+| 7 | `npm run lax -- status` (3rd terminal) | Yellow `LAX TRIGGER ZONE`/border during execution; HF restored toward 1.10 |
+
+Dry-run variant (no API key needed): run beat 2 as
+`npm run lax -- autopilot daemon --dry-run` — the full pipeline runs and the
+daemon stops at "gate approved, webhook NOT fired".
+
+**Real-transaction beat** (the submission evidence): after the fork beats, run
+`./scripts/fire-sepolia.sh` — one real webhook fire on Base Sepolia producing
+approve + repay transactions and the audit trail. The verified run is logged in
+[`docs/VERIFIED-TESTING.md`](../docs/VERIFIED-TESTING.md).
 
 ## Failure modes
 
-- **Anvil not up** → `connect ECONNREFUSED`; rerun `./scripts/start-fork.sh`.
-- **Gas** → fund the execution wallet (see `agent/skills/fund-position.md`).
-- **Workflow error** → check `kh run logs`; template-reference errors are the
-  known platform gap — report, don't silently work around.
+- **Anvil not up** → daemon logs `position read failed` each poll; rerun `./scripts/start-fork.sh`.
+- **Gate blocked (spend-caps)** → raise caps for the demo: `LAX_BLOCK_THRESHOLD_USD=50 LAX_DAILY_LIMIT_USD=100`.
+  The daily spend persists across restarts (by design); reset it with `rm ~/.lax/safety.json`.
+- **Wallet not funded** → preflight fails with an ERC-20 allowance revert; run `./scripts/fund-demo-wallet.sh`.
+- **KeeperHub API key missing** → live mode fails at fire; use `--dry-run` or export the key.
+- **Workflow error** → check the audit-trail link in the daemon output; template-reference
+  errors are the known platform gap — report, don't silently work around.
 
 ## Recording
 
-- Capture the terminal + dashboard + the basescan tx link.
-- The submission requires a demo video + the tx link; both come from this run.
+- Capture the daemon terminal + the `lax status` gauge + the audit-trail link.
+- The submission requires a demo video + a tx link; both come from this run.
+- `~/.lax/mitigations.jsonl` is the append-only local log of every trigger,
+  gate decision, and fire — show it with `lax runs` or `tail ~/.lax/mitigations.jsonl`.
