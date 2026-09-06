@@ -1,0 +1,6 @@
+{
+  "positions": [
+    { "name": "main", "borrower": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "threshold": 1.05, "target": 1.1 },
+    { "name": "treasury", "borrower": "0x8Bb7870242e75132Fd62265cA8ABF771d49C821C", "threshold": 1.15, "target": 1.25 }
+  ]
+}

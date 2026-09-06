@@ -63,6 +63,21 @@ cast rpc anvil_setStorageAt $USDC $BORROWER_SLOT \
 echo "  Borrower USDC: $(cast call $USDC "balanceOf(address)(uint256)" $BORROWER --rpc-url $RPC | awk '{print $1}')"
 
 echo ""
+# Idempotency guard: a fork restored from saved state already has this position.
+# Re-running supply+borrow on it over-leverages the borrower until
+# getUserAccountData panics with arithmetic underflow (availableBorrows < 0).
+EXISTING_DEBT=$(cast call $POOL "getUserAccountData(address)(uint256,uint256,uint256,uint256,uint256,uint256)" $BORROWER --rpc-url $RPC 2>/dev/null | sed -n '2p' | awk '{print $1}')
+if [ -n "$EXISTING_DEBT" ] && [ "$EXISTING_DEBT" != "0" ] && [ "$EXISTING_DEBT" != "0 [0.0e0]" ]; then
+  echo "[5/5] Position already seeded (debt ${EXISTING_DEBT}) — skipping supply/borrow"
+  echo ""
+  echo "=== Position summary ==="
+  cast call $POOL "getUserAccountData(address)(uint256,uint256,uint256,uint256,uint256,uint256)" $BORROWER --rpc-url $RPC | \
+    awk '{ printf "  %s: %s\n", $2, $1 }'
+  echo ""
+  echo "=== Fork setup complete (existing position) ==="
+  exit 0
+fi
+
 echo "[5/5] Creating Aave V3 position (HF ≈ 1.10 at \$3,300 WETH)..."
 
 # Approve 500 USDC for pool supply (adds liquidity so we can borrow)
