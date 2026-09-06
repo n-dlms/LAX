@@ -140,12 +140,17 @@ export function runCritique(ctx: CritiqueContext): CritiqueReport {
       throw new Error('Safety: repay amount exceeds sanity cap of $1,000,000 — possible decimal overflow')
     }
 
-    if (usdValue > CONFIG.SAFETY.BLOCK_THRESHOLD_USD) {
-      throw new Error(`Safety: $${usdValue.toFixed(2)} exceeds block threshold $${CONFIG.SAFETY.BLOCK_THRESHOLD_USD.toFixed(2)}`)
+    // Env overrides let a deployment size the caps to its positions (e.g. a
+    // fork demo needs ~$32 repays); defaults keep the wallet-ops posture.
+    const blockThreshold = Number(process.env.LAX_BLOCK_THRESHOLD_USD) || CONFIG.SAFETY.BLOCK_THRESHOLD_USD
+    const dailyLimit = Number(process.env.LAX_DAILY_LIMIT_USD) || CONFIG.SAFETY.DAILY_LIMIT_USD
+
+    if (usdValue > blockThreshold) {
+      throw new Error(`Safety: $${usdValue.toFixed(2)} exceeds block threshold $${blockThreshold.toFixed(2)}`)
     }
 
-    if (usdValue > CONFIG.SAFETY.DAILY_LIMIT_USD) {
-      warnings.push(`Safety: $${usdValue.toFixed(2)} exceeds daily limit $${CONFIG.SAFETY.DAILY_LIMIT_USD.toFixed(2)}`)
+    if (usdValue > dailyLimit) {
+      warnings.push(`Safety: $${usdValue.toFixed(2)} exceeds daily limit $${dailyLimit.toFixed(2)}`)
     }
   }, STAGE_TIMEOUTS[3])
 

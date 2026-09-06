@@ -1,4 +1,7 @@
 import { CONFIG } from '../config.js'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 interface SafetyConfig {
   block_threshold_usd: number
@@ -6,15 +9,41 @@ interface SafetyConfig {
   denied_selectors: readonly string[]
 }
 
-let dailySpend = 0
-let dailyResetAt = 0
-
 const SELECTOR_LENGTH = 10
 
+// Daily spend persists to disk so a daemon restart cannot reset the cap
+// (previously in-memory only — a judge-findable hole, see V2 plan fix #3).
+const SAFETY_STATE_FILE = join(
+  process.env.LAX_STATE_DIR || join(homedir(), '.lax'),
+  'safety.json',
+)
+
+let dailySpend = 0
+let dailyResetAt = Date.now()
+
+try {
+  const persisted = JSON.parse(readFileSync(SAFETY_STATE_FILE, 'utf8')) as { dailySpend?: number; dailyResetAt?: number }
+  if (typeof persisted.dailySpend === 'number') dailySpend = persisted.dailySpend
+  if (typeof persisted.dailyResetAt === 'number') dailyResetAt = persisted.dailyResetAt
+} catch {
+  /* first run or unreadable state — start fresh */
+}
+
+function persistDailySpend(): void {
+  try {
+    mkdirSync(join(SAFETY_STATE_FILE, '..'), { recursive: true })
+    writeFileSync(SAFETY_STATE_FILE, JSON.stringify({ dailySpend, dailyResetAt }))
+  } catch {
+    /* best-effort persistence */
+  }
+}
+
+// Env overrides size the caps to the deployment's positions; defaults keep
+// the wallet-ops posture (same overrides as critique-agent stage 3).
 function loadSafetyConfig(): SafetyConfig {
   return {
-    block_threshold_usd: CONFIG.SAFETY.BLOCK_THRESHOLD_USD,
-    daily_limit_usd: CONFIG.SAFETY.DAILY_LIMIT_USD,
+    block_threshold_usd: Number(process.env.LAX_BLOCK_THRESHOLD_USD) || CONFIG.SAFETY.BLOCK_THRESHOLD_USD,
+    daily_limit_usd: Number(process.env.LAX_DAILY_LIMIT_USD) || CONFIG.SAFETY.DAILY_LIMIT_USD,
     denied_selectors: CONFIG.SAFETY.DENIED_SELECTORS,
   }
 }
@@ -24,12 +53,14 @@ function resetDailyCapIfNeeded(): void {
   if (now - dailyResetAt > 86_400_000) {
     dailySpend = 0
     dailyResetAt = now
+    persistDailySpend()
   }
 }
 
 export function resetDailyCap(): void {
   dailySpend = 0
   dailyResetAt = Date.now()
+  persistDailySpend()
 }
 
 interface SafetyCheckResult {
@@ -40,6 +71,7 @@ interface SafetyCheckResult {
 export function checkSafety(
   toolName: string,
   args: Record<string, unknown>,
+  opts?: { record?: boolean },
 ): SafetyCheckResult {
   const safety = loadSafetyConfig()
   resetDailyCapIfNeeded()
@@ -73,7 +105,11 @@ export function checkSafety(
       return { allowed: false, reason: `DAILY_CAP_EXCEEDED: $${(dailySpend + usdValue).toFixed(2)} > $${safety.daily_limit_usd.toFixed(2)} (spent $${dailySpend.toFixed(2)})` }
     }
 
-    dailySpend += usdValue
+    // dry-runs and gate checks may verify the cap without consuming budget
+    if (opts?.record !== false) {
+      dailySpend += usdValue
+      persistDailySpend()
+    }
     return { allowed: true, reason: null }
   }
 
