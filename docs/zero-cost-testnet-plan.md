@@ -47,7 +47,7 @@ transfer before the real flow.
    wrap a sliver of ETH → WETH → `supply(WETH)` → `borrow(1 Aave-USDC)`.
 6. **The submission tx**: `approve(POOL, USDC)` → `repay(USDC, amount, 2, onBehalfOf)`
    through the KeeperHub workflow. Proof = explorer link + `app.keeperhub.com/runs/<id>`.
-   Remember FEEDBACK.md C1 (`tokenConfig` must be `JSON.stringify`'d) and C2 (`onBehalfOf`
+   Remember docs/FEEDBACK.md C1 (`tokenConfig` must be `JSON.stringify`'d) and C2 (`onBehalfOf`
    is required).
 
 Public RPC (free): `https://sepolia.base.org` (official, per docs.base.org).
