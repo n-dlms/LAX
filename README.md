@@ -13,7 +13,7 @@ oracle update — no reactive agent can outrun them. LAX doesn't race. It watche
 your health factor continuously and repairs the position **before** the bots
 ever see an opportunity.
 
-[![tests](https://img.shields.io/badge/tests-465%20passing-brightgreen)](docs/VERIFIED-TESTING.md)
+[![tests](https://img.shields.io/badge/tests-502%20passing-brightgreen)](docs/VERIFIED-TESTING.md)
 [![typecheck](https://img.shields.io/badge/tsc-strict%20clean-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-339933)](package.json)
@@ -68,6 +68,9 @@ daemon defends every configured position:
 
 ```bash
 npm run lax -- status                  # HF gauge + guardian state
+npm run lax -- watch                   # live gauge + sparkline trend
+npm run lax -- whatif --shock 25       # "if the market crashes now?"
+npm run lax -- demo                    # self-running tour: shock → gate → repair
 npm run lax -- arm                     # arm the autopilot (persisted)
 npm run lax -- autopilot daemon        # continuous defense
 npm run lax -- autopilot daemon --dry-run   # full pipeline, never fires
@@ -83,9 +86,11 @@ npm run lax -- autopilot daemon --dry-run   # full pipeline, never fires
 
 | Surface | What it does |
 |---------|--------------|
-| **Liquidation CLI** | Zero-dependency terminal binary: REPL, one-shot commands, piped scripting. HF gauge, semantic-colored output, confirmation-gated actions — [full manual](docs/CLI-GUIDE.md) |
+| **Liquidation CLI** | Zero-dependency terminal binary: REPL, one-shot commands, piped scripting. HF gauge + sparkline, what-if crash analysis, self-running demo — [full manual](docs/CLI-GUIDE.md) |
 | **Autopilot daemon** | Multi-position, multi-network monitor loop with per-position thresholds, cooldowns, and hysteresis |
 | **Mitigation gate** | Nothing fires without passing HF-math verification → preflight `eth_call` simulation → safety bounds → spend caps |
+| **Operator alerts** | Discord/Slack webhook notifications on trigger, block, fire, failure (`lax alert --test`) |
+| **Persistent evidence** | Append-only mitigation log with stage-by-stage replay (`lax runs` · `lax explain`) |
 | **Web terminal** | The browser dashboard shares the *same command core* — embedded terminal, monitoring and audit views |
 | **AI agent** | `lax-guardian` (OpenCode + NVIDIA NIM) decides when to act; [system prompt + skills + runbook](agent/) |
 | **Evidence** | Every claim logged in [docs/VERIFIED-TESTING.md](docs/VERIFIED-TESTING.md) |
@@ -188,7 +193,7 @@ live-fire evidence, the gate's real blocking outcomes, the CLI command battery,
 daemon modes, and the nine real bugs the verification found and fixed.
 
 ```bash
-npm test          # 465 passed · 2 fork-live skipped without a fork (467 total)
+npm test          # 502 passed (18 test files, fork-live tests included when a fork runs)
 npm run lint      # tsc --noEmit — clean (root + dashboard)
 ```
 
@@ -198,7 +203,7 @@ npm run lint      # tsc --noEmit — clean (root + dashboard)
 |-----------|-----------------|
 | Integration depth | Aave V3 is the named live project — integration targets the actual Pool contract (`repay()`, `getUserAccountData`), not a generic wrapper |
 | Execution through KeeperHub | Real value movement: USDC approve → Aave debt repayment through the KeeperHub workflow, verifiable via tx hash + `app.keeperhub.com/runs/<id>` |
-| Reliability and observability | 465-test suite, preflight dry-run simulation, safety plugin (block/daily caps, selector allowlist), KeeperHub execution polling, offline position cache |
+| Reliability and observability | 502-test suite, preflight dry-run simulation, safety plugin (block/daily caps, selector allowlist), KeeperHub execution polling, offline position cache |
 | Usefulness and originality | Proactive-not-reactive liquidation defense at HF=1.05 — retail Aave users have no autonomous defender above the MEV-bot threshold |
 | Developer experience and code quality | `npm run setup` one-command bootstrap, `bootstrap/` starter template, zero `any` types, every address in one `src/config.ts`, candid limitations documented |
 

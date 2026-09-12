@@ -91,13 +91,41 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 ## 5. Test suite & static checks
 
 - `npx tsc --noEmit` — clean (root + dashboard).
-- `npx vitest run` — **14 files, 465 passing, 2 fork-live skipped without a fork**
-  (2 fork-live helper tests skip when no fork is running and pass when it is —
-  verified both states; run date 2026-09-10: 465 passed | 2 skipped, 467 total).
+- `npx vitest run` — **18 files, 502 passing** (run date 2026-09-12; suite grew
+  from 467 with the V2.1 features: state durability, persisted runs/explain,
+  whatif, watch sparkline, operator alerts).
 - Covers: repay math (closed-form HF targeting), critique gate stages, preflight simulator
   contract + live helper subprocess tests, safety plugin (caps, persistence), multi-position
-  config parsing, wallet resolution, listener, e2e integration, config validation.
+  config parsing, wallet resolution, listener, e2e integration, config validation,
+  state durability (corrupt state.json backup, corrupt JSONL line skip), persisted
+  runs/explain rendering, whatif counterfactual math, sparkline, alert payload shaping
+  (Discord/Slack/generic) + delivery.
 - Dashboard production build (`vite build`) succeeds with the shared CLI core.
+
+## 5b. V2.1 feature verification (2026-09-12, live against the fork)
+
+- **`lax demo`** — full narrated run executed twice live (dry-run and `--yes`):
+  scenario auto-heal (WETH price raised iteratively until HF > 1.05), −25% shock,
+  gate 4/4 approved, approve+repay executed on the fork (txs
+  `0x2accc2e6…`, `0x5f60e19c…`), **HF restored 1.0199 → 1.1009** (target 1.1).
+  Also verified the failure paths: stale-read gate block (fixed by computing the
+  repay from the fresh read), out-of-gas repay (100k gas insufficient → 300k),
+  daily-cap block after repeated runs (correct behavior).
+- **`lax whatif`** — live against the fork: HF 1.0978 @ WETH $3300, −25% shock →
+  HF 0.8234 LIQUIDATABLE, repay $0.95 today vs $120.72 after shock. `--json`
+  shape verified. Recovery math re-checked from the shocked fork state.
+- **`lax watch`** — live gauge + trend; piped `--once` mode exits after one
+  sample (script-safe).
+- **`lax runs` / `lax explain`** — read the persistent mitigation log; verified
+  against the real log (Sepolia fire `9bc31ofdfca1m62b2v29t` + gate-blocked
+  records), corrupt-line skip, `--json` dump.
+- **Operator alerts** — unit-tested payload shaping (Discord embed / Slack text /
+  generic), non-blocking delivery, unset-env no-op. End-to-end Discord delivery
+  requires a channel webhook (`lax alert --test`).
+- **Reliability fixes verified by tests**: corrupt `state.json` → backup + fresh
+  start (not silent reset); corrupt JSONL line → skipped; CLI guardian writes
+  merge into daemon state (no clobber); daemon installs
+  `unhandledRejection`/`uncaughtException` handlers.
 
 ## 6. Demo infrastructure (judge reliability)
 

@@ -62,24 +62,9 @@ export function saveState(state: DaemonState): void {
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-export interface MitigationRecord {
-  /** Epoch ms — set by appendMitigation when omitted. */
-  ts?: number;
-  kind: "trigger" | "gate-blocked" | "webhook-fired" | "fire-failed" | "dry-run" | "cooldown" | "shutdown";
-  hf?: number;
-  repayUsdc?: string;
-  repayHuman?: string;
-  executionId?: string;
-  reason?: string;
-  /** Compact per-stage verdicts, e.g. "hf-math:ok,preflight:FAIL". */
-  stages?: string;
-  /** Full gate stage detail — what `lax explain` replays. */
-  stagesDetail?: { name: string; passed: boolean; detail: string }[];
-  position?: string;
-  network?: string;
-}
-
-export function appendMitigation(record: MitigationRecord): void {
+// Record shape lives in the pure module so the browser dashboard can share it
+export type { MitigationRecord } from "../mitigation-record";
+import type { MitigationRecord } from "../mitigation-record";export function appendMitigation(record: MitigationRecord): void {
   mkdirSync(LAX_DIR, { recursive: true });
   appendFileSync(MITIGATION_LOG, JSON.stringify({ ts: Date.now(), ...record }) + "\n");
 }

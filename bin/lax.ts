@@ -8,10 +8,14 @@ import { stdin, stdout, exit } from "node:process";
 
 import "./env-load";
 import { execute, setCommandContext } from "../src/cli/executor";
+import { registerNodeCommands } from "../src/cli/node-commands";
 import { createNodeContext, refreshLatestPosition } from "../src/cli/node-context";
 import { renderBanner, renderCommandOutput, style, box, TOKENS, Spinner } from "../src/cli/ui";
 import { getExecutionRecords } from "../src/cli/session";
 import { LAX_CONFIG } from "../src/cli/lax-config";
+
+// Registers demo/watch/alert (Node-only commands) into the shared registry
+registerNodeCommands();
 
 const ctx = createNodeContext();
 setCommandContext(ctx);

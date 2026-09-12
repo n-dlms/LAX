@@ -2,18 +2,9 @@ import type { CommandContext, ParsedArgs, CommandResult } from "../types";
 import { LAX_CONFIG } from "../lax-config";
 import { getHistory } from "../history";
 import { getSession, getExecutionRecords, listSnapshots, getSnapshot } from "../session";
-import { readMitigations, mitigationLogPath, type MitigationRecord } from "../../autopilot/state";
-import { runUrl } from "../../keeperhub";
+import { MITIGATION_KIND_LABEL, type MitigationRecord } from "../../mitigation-record";
 
-const KIND_LABEL: Record<MitigationRecord["kind"], string> = {
-  trigger: "▲ TRIGGER",
-  "gate-blocked": "⛔ BLOCKED",
-  "webhook-fired": "⚡ FIRED",
-  "fire-failed": "✖ FAILED",
-  "dry-run": "◌ DRY-RUN",
-  cooldown: "⏱ COOLDOWN",
-  shutdown: "■ SHUTDOWN",
-};
+const KIND_LABEL = MITIGATION_KIND_LABEL;
 
 function fmtRepay(rec: MitigationRecord): string {
   if (rec.repayHuman) return rec.repayHuman;
@@ -25,16 +16,33 @@ function fmtTime(ts?: number): string {
   return ts ? new Date(ts).toLocaleTimeString("en-GB") : "—";
 }
 
-export async function handleRuns(_ctx: CommandContext, args: ParsedArgs): Promise<CommandResult> {
+/** Mitigation records from the context (persisted log on node, session in browser). */
+function mitigationRecords(ctx: CommandContext, limit: number): MitigationRecord[] {
+  if (ctx.readMitigations) return ctx.readMitigations(limit);
+  // Browser fallback: session-local executions rendered as records
+  return getExecutionRecords().map((e) => ({
+    ts: e.timestamp,
+    kind: "webhook-fired" as const,
+    executionId: e.id,
+    reason: e.command,
+  }));
+}
+
+function logPathLabel(ctx: CommandContext): string {
+  return ctx.mitigationLogPath?.() ?? "(session records)";
+}
+
+export async function handleRuns(ctx: CommandContext, args: ParsedArgs): Promise<CommandResult> {
   const isJson = args.flags["json"] !== undefined;
   const limit = parseInt(args.flags["limit"] ?? "15");
-  const mitigations = readMitigations(Math.max(limit, 1));
+  const usingPersistedLog = Boolean(ctx.readMitigations);
+  const mitigations = mitigationRecords(ctx, Math.max(limit, 1));
   const sessionExecs = getExecutionRecords();
 
   if (isJson) {
     return {
       output: JSON.stringify(
-        { mitigationLog: mitigationLogPath(), mitigations: readMitigations(1000), sessionExecutions: sessionExecs },
+        { mitigationLog: logPathLabel(ctx), mitigations: mitigationRecords(ctx, 1000), sessionExecutions: sessionExecs },
         null,
         2,
       ),
@@ -42,10 +50,10 @@ export async function handleRuns(_ctx: CommandContext, args: ParsedArgs): Promis
   }
 
   if (mitigations.length === 0 && sessionExecs.length === 0) {
-    return { output: `No mitigations recorded yet (log: ${mitigationLogPath()}) and no KeeperHub executions this session` };
+    return { output: `No mitigations recorded yet (log: ${logPathLabel(ctx)}) and no KeeperHub executions this session` };
   }
 
-  const lines: string[] = [`Mitigation log — ${mitigationLogPath()}`, "─".repeat(72)];
+  const lines: string[] = [`Mitigation log — ${logPathLabel(ctx)}`, "─".repeat(72)];
   if (mitigations.length === 0) {
     lines.push("  (empty — the daemon appends here on every trigger, gate decision, and fire)");
   }
@@ -59,10 +67,10 @@ export async function handleRuns(_ctx: CommandContext, args: ParsedArgs): Promis
     if (rec.kind === "gate-blocked" && rec.stages) parts.push(`stages [${rec.stages}]`);
     else if (rec.kind === "gate-blocked" && rec.reason) parts.push(rec.reason);
     lines.push(parts.join("  "));
-    if (rec.executionId) lines.push(`${" ".repeat(26)}${runUrl(rec.executionId)}`);
+    if (rec.executionId) lines.push(`${" ".repeat(26)}${LAX_CONFIG.KEEPERHUB_RUN_URL(rec.executionId)}`);
   }
 
-  if (sessionExecs.length > 0) {
+  if (sessionExecs.length > 0 && usingPersistedLog) {
     lines.push("", `KeeperHub executions (this session):`);
     for (const e of sessionExecs.slice(-limit)) {
       lines.push(`  ${new Date(e.timestamp).toLocaleTimeString()}  ${e.command.padEnd(12)}  ${e.id.slice(0, 16)}…  ${e.status}`);
@@ -71,10 +79,10 @@ export async function handleRuns(_ctx: CommandContext, args: ParsedArgs): Promis
   return { output: lines.join("\n") };
 }
 
-export async function handleExplain(_ctx: CommandContext, args: ParsedArgs): Promise<CommandResult> {
+export async function handleExplain(ctx: CommandContext, args: ParsedArgs): Promise<CommandResult> {
   const key = args.positional[0] ?? "";
   if (!key) return { output: "Usage: lax explain <execution-id | runs-index>", error: "Missing argument" };
-  const all = readMitigations(1000);
+  const all = mitigationRecords(ctx, 1000);
 
   let rec: MitigationRecord | undefined;
   if (/^\d+$/.test(key)) {
@@ -94,7 +102,7 @@ export async function handleExplain(_ctx: CommandContext, args: ParsedArgs): Pro
   if (rec.position) lines.push(`  position:  ${rec.position}@${rec.network ?? "?"}`);
   if (rec.hf !== undefined) lines.push(`  HF at decision: ${rec.hf.toFixed(4)}`);
   if (rec.kind !== "shutdown") lines.push(`  repay amount:   ${fmtRepay(rec)}`);
-  if (rec.executionId) lines.push(`  execution:      ${rec.executionId}`, `  audit trail:    ${runUrl(rec.executionId)}`);
+  if (rec.executionId) lines.push(`  execution:      ${rec.executionId}`, `  audit trail:    ${LAX_CONFIG.KEEPERHUB_RUN_URL(rec.executionId)}`);
   if (rec.reason) lines.push(`  reason:         ${rec.reason}`);
 
   if (rec.stagesDetail && rec.stagesDetail.length > 0) {

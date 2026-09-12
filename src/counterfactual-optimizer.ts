@@ -59,7 +59,6 @@ export function computeOptimalMitigation(
   const maxLT = Math.max(...collaterals.map((c) => c.liquidationThreshold))
   const maxLTCollateral = collaterals.find((c) => c.liquidationThreshold === maxLT)!
   const targetHfNum = Number(targetHf) / 1e18
-  const currentHfNum = Number(currentHf) / 1e18
 
   const repayAmountBigint = computeRepayAmount(totalDebtBase, currentHf, targetHf)
   const repayUSD = Number(repayAmountBigint) / 1e6

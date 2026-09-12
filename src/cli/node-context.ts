@@ -86,7 +86,8 @@ import {
   loadState as loadDaemonState,
   saveState as saveDaemonState,
   appendMitigation,
-  mitigationLogPath as mitigationLogPathShared,
+  readMitigations as readPersistedMitigations,
+  mitigationLogPath as sharedLogPath,
   type MitigationRecord,
 } from "../autopilot/state";
 
@@ -103,7 +104,7 @@ export function appendMitigationLog(entry: Record<string, unknown>): void {
 }
 
 export function mitigationLogPath(): string {
-  return mitigationLogPathShared();
+  return sharedLogPath();
 }
 
 
@@ -224,6 +225,8 @@ export function createNodeContext(): import("./types").CommandContext {
     listSnapshots: () => [],
     addExecutionRecord: (rec) => addExecutionRecord(rec),
     getExecutionRecords: () => [],
+    readMitigations: (limit?: number) => readPersistedMitigations(limit),
+    mitigationLogPath: () => sharedLogPath(),
   };
 }
 

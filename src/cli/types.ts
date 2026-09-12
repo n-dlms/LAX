@@ -129,6 +129,10 @@ export interface CommandContext {
   listSnapshots: () => Snapshot[];
   addExecutionRecord: (rec: ExecutionRecord) => void;
   getExecutionRecords: () => ExecutionRecord[];
+  /** Persisted mitigation-log access (node contexts). Browser contexts omit
+   *  these — `lax runs` then falls back to session-local records. */
+  readMitigations?: (limit?: number) => import("../mitigation-record").MitigationRecord[];
+  mitigationLogPath?: () => string;
 }
 
 export type CliEvent = {

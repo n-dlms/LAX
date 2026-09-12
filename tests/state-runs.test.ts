@@ -36,6 +36,8 @@ function ctx(): CommandContext {
     listSnapshots: () => [],
     addExecutionRecord: () => {},
     getExecutionRecords: () => [],
+    readMitigations: (limit?: number) => readMitigations(limit),
+    mitigationLogPath: () => mitigationLogPath(),
   };
 }
 
@@ -115,8 +117,10 @@ describe("lax runs (persisted)", () => {
   it("reports an empty log gracefully", async () => {
     vi.resetModules();
     process.env.LAX_STATE_DIR = `/tmp/lax-empty-test-${Date.now()}`;
+    const { readMitigations: freshRead, mitigationLogPath: freshPath } = await import("../src/autopilot/state");
     const { handleRuns: freshRuns } = await import("../src/cli/actions/audit");
-    const res = await freshRuns(ctx(), args({}));
+    const freshCtx = { ...ctx(), readMitigations: (limit?: number) => freshRead(limit), mitigationLogPath: () => freshPath() } as CommandContext;
+    const res = await freshRuns(freshCtx, args({}));
     expect(res.output).toContain("No mitigations recorded yet");
   });
 });
