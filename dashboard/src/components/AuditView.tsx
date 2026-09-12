@@ -60,9 +60,9 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div className="bg-surface border border-bordercol p-4 flex-1 min-w-[140px] text-center animate-scale-in">
+    <div className="bg-surface border border-bordercol p-4 flex-1 min-w-[140px] text-center animate-scale-in overflow-hidden">
       <div className="text-xs text-secondary mb-1">{label}</div>
-      <div className={`font-projector-value leading-none ${color}`}>{value}</div>
+      <div className={`font-projector-value-sm leading-none ${color}`}>{value}</div>
     </div>
   );
 }

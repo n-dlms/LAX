@@ -50,6 +50,15 @@ body {
   line-height: 72px;
   font-weight: 500;
 }
+/* Summary-card scale: big enough to read across the room, small enough that
+   "1.1000" / "12.3s" never overflow a 140px card */
+.font-projector-value-sm {
+  font-size: clamp(26px, 3.2vw, 42px);
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
 .font-projector-body {
   font-size: 18px;
   line-height: 28px;
