@@ -6,6 +6,7 @@ import { handleOnchain } from "./actions/onchain";
 import { handleAudit } from "./actions/audit";
 import { handleWhatif } from "./actions/whatif";
 import { handleDemo } from "./actions/demo";
+import { handleWatch } from "./actions/watch";
 import { handleSystem } from "./actions/system";
 import { handleHelp, handleMan, handleAliases } from "./actions/help";
 
@@ -24,6 +25,7 @@ reg(handleOnchain);
 reg(handleAudit);
 reg({ whatif: handleWhatif });
 reg({ demo: handleDemo });
+reg({ watch: handleWatch });
 reg(handleSystem);
 handlers["help"] = handleHelp;
 handlers["?"] = handleHelp;
@@ -64,6 +66,9 @@ function add(cmd: CommandDefinition): void {
 // ── Monitor ──
 add(def("status", "lax status", "Overall system status (HF, block, oracle, connection)", "monitor", "rpc-read", {
   aliases: ["st"],
+}));
+add(def("watch", "lax watch [--interval SEC]", "Live monitor: HF gauge + sparkline trend, redraws every interval", "monitor", "rpc-read", {
+  examples: ["lax watch", "lax watch --interval 1"],
 }));
 add(def("hf", "lax hf", "Current health factor", "monitor", "rpc-read", {
   aliases: ["health", "health-factor"],
