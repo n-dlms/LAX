@@ -7,6 +7,7 @@ import { handleAudit } from "./actions/audit";
 import { handleWhatif } from "./actions/whatif";
 import { handleDemo } from "./actions/demo";
 import { handleWatch } from "./actions/watch";
+import { handleAlert } from "./actions/alerts";
 import { handleSystem } from "./actions/system";
 import { handleHelp, handleMan, handleAliases } from "./actions/help";
 
@@ -26,6 +27,7 @@ reg(handleAudit);
 reg({ whatif: handleWhatif });
 reg({ demo: handleDemo });
 reg({ watch: handleWatch });
+reg({ alert: handleAlert });
 reg(handleSystem);
 handlers["help"] = handleHelp;
 handlers["?"] = handleHelp;
@@ -69,6 +71,9 @@ add(def("status", "lax status", "Overall system status (HF, block, oracle, conne
 }));
 add(def("watch", "lax watch [--interval SEC]", "Live monitor: HF gauge + sparkline trend, redraws every interval", "monitor", "rpc-read", {
   examples: ["lax watch", "lax watch --interval 1"],
+}));
+add(def("alert", "lax alert [--test]", "Operator alerts (Discord/Slack webhook) — status and test send", "system", "local-only", {
+  examples: ["lax alert", "lax alert --test"],
 }));
 add(def("hf", "lax hf", "Current health factor", "monitor", "rpc-read", {
   aliases: ["health", "health-factor"],

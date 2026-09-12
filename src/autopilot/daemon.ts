@@ -12,6 +12,7 @@ import { fireWorkflowWebhook, runUrl } from "../keeperhub";
 import { runMitigationGate } from "./gate";
 import { loadPositions, type ResolvedPosition } from "./positions";
 import { loadState, saveState, appendMitigation, mitigationLogPath, type DaemonState } from "./state";
+import { sendAlertAsync } from "../alerts";
 
 export interface DaemonOptions {
   /** Poll interval in ms (default: CONFIG.LISTENER_POLL_MS = 2000) */
@@ -181,6 +182,7 @@ async function pollOnce(
   }
 
   log(TOKENS.trigger, style.yellow, `TRIGGER ${tag} HF ${hf.toFixed(4)} ≤ ${position.threshold} — repay ${usdcToString(repayUsdc)} USDC → target ${position.target}`);
+  sendAlertAsync({ event: "trigger", position: position.name, network: position.network, hf, repayHuman: usdcToString(repayUsdc) });
 
   const gate = runMitigationGate({
     totalDebtBase: pos.totalDebtUSD,
@@ -200,6 +202,7 @@ async function pollOnce(
 
   if (!gate.approved) {
     appendMitigation({ kind: "gate-blocked", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), reason: gate.summary, stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network });
+    sendAlertAsync({ event: "gate-blocked", position: position.name, network: position.network, hf, repayHuman: usdcToString(repayUsdc), detail: gate.summary });
     log(TOKENS.fail, style.red, `GATE BLOCKED — nothing was fired. This is the safety system working.`);
     return { decision: "gate-blocked", fired: false };
   }
@@ -225,11 +228,13 @@ async function pollOnce(
     if (!fire.ok) throw new Error(`KeeperHub ${fire.status}: ${fire.raw.slice(0, 200)}`);
 
     appendMitigation({ kind: "webhook-fired", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), executionId: fire.executionId, stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network, reason: "autopilot-trigger" });
+    sendAlertAsync({ event: "webhook-fired", position: position.name, network: position.network, hf, repayHuman: usdcToString(repayUsdc), executionId: fire.executionId });
     log(TOKENS.bolt, style.cyan, `fired → execution ${style.bold(fire.executionId)}`);
     console.log(`     ${style.gray("audit trail:")} ${style.underline(style.blue(runUrl(fire.executionId)))}`);
     return { decision: "fired", fired: true };
   } catch (err) {
     appendMitigation({ kind: "fire-failed", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), reason: (err as Error).message, stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network });
+    sendAlertAsync({ event: "fire-failed", position: position.name, network: position.network, hf, repayHuman: usdcToString(repayUsdc), detail: (err as Error).message });
     log(TOKENS.fail, style.red, `fire failed: ${(err as Error).message}`);
     return { decision: "fire-failed", fired: false };
   }

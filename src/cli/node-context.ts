@@ -9,6 +9,7 @@ import { addExecutionRecord } from "./session";
 import { computeRepayAmount, hfToBigint, usdcToString } from "../repay-math";
 import { fireWorkflowWebhook } from "../keeperhub";
 import { runMitigationGate } from "../autopilot/gate";
+import { sendAlertAsync } from "../alerts";
 import { rpc as sharedRpc, waitNextBlock } from "./rpc-utils";
 
 export { waitNextBlock };
@@ -133,6 +134,7 @@ export async function fireMitigationWebhook(reason: string): Promise<{ execution
   });
   if (!gate.approved) {
     appendMitigationLog({ kind: "gate-blocked", reason, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), gateSummary: gate.summary, stagesDetail: gate.stages });
+    sendAlertAsync({ event: "gate-blocked", hf: Number(pos.healthFactor) / 1e18, repayHuman: usdcToString(repayUsdc), detail: gate.summary });
     return { error: `mitigation gate blocked the fire (${gate.summary}) — nothing was executed` };
   }
 
@@ -163,6 +165,7 @@ export async function fireMitigationWebhook(reason: string): Promise<{ execution
     workflowId: LAX_CONFIG.WORKFLOW_ID,
     stagesDetail: gate.stages,
   });
+  sendAlertAsync({ event: "webhook-fired", hf: Number(pos.healthFactor) / 1e18, repayHuman: usdcToString(repayUsdc), executionId: fire.executionId });
   return { executionId: fire.executionId, repayUsdc, hfAtTrigger: Number(pos.healthFactor) / 1e18, gate: gate.summary };
 }
 
