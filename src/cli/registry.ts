@@ -4,6 +4,7 @@ import { handleMock } from "./actions/mock";
 import { handleGuardian } from "./actions/guardian";
 import { handleOnchain } from "./actions/onchain";
 import { handleAudit } from "./actions/audit";
+import { handleWhatif } from "./actions/whatif";
 import { handleSystem } from "./actions/system";
 import { handleHelp, handleMan, handleAliases } from "./actions/help";
 
@@ -20,6 +21,7 @@ reg(handleMock);
 reg(handleGuardian);
 reg(handleOnchain);
 reg(handleAudit);
+reg({ whatif: handleWhatif });
 reg(handleSystem);
 handlers["help"] = handleHelp;
 handlers["?"] = handleHelp;
@@ -69,6 +71,9 @@ add(def("position", "lax position", "Full position breakdown (collateral, debt, 
 }));
 add(def("debt", "lax debt [token]", "Debt details (amount, USD value)", "monitor", "rpc-read", {
   examples: ["lax debt", "lax debt USDC"],
+}));
+add(def("whatif", "lax whatif [--shock PCT] [--lt LT]", "What-if: collateral drops PCT% — shocked HF and defense cost", "monitor", "rpc-read", {
+  examples: ["lax whatif", "lax whatif --shock 30", "lax whatif --shock 10 --lt 0.85"],
 }));
 add(def("collateral", "lax collateral [token]", "Collateral details (supplied, deposited)", "monitor", "rpc-read", {
   aliases: ["coll"],

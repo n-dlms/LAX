@@ -20,7 +20,7 @@ import type { CommandContext, ParsedArgs } from "../src/cli/types";
 function ctx(): CommandContext {
   return {
     rpc: (() => Promise.resolve("0x")) as unknown as CommandContext["rpc"],
-    position: () => undefined,
+    position: () => null,
     config: {} as CommandContext["config"],
     appendLog: () => {},
     refreshPosition: async () => {},
@@ -79,7 +79,7 @@ describe("state durability", () => {
     expect(state.guardian.enabled).toBe(false);
     const backups = readdirSync(STATE_DIR).filter((f) => f.includes(".corrupt-"));
     expect(backups.length).toBeGreaterThanOrEqual(1);
-    expect(readFileSync(join(STATE_DIR, backups[backups.length - 1]), "utf8")).toBe("{not valid json");
+    expect(readFileSync(join(STATE_DIR, backups[backups.length - 1]!), "utf8")).toBe("{not valid json");
   });
 
   it("loadState preserves daemon fields written by saveState", () => {
@@ -107,7 +107,7 @@ describe("lax runs (persisted)", () => {
 
   it("supports --json machine-readable output", async () => {
     const res = await handleRuns(ctx(), args({ json: "" }));
-    const parsed = JSON.parse(res.output) as { mitigations: { kind: string }[]; mitigationLog: string };
+    const parsed = JSON.parse(res.output!) as { mitigations: { kind: string }[]; mitigationLog: string };
     expect(parsed.mitigations).toHaveLength(3);
     expect(parsed.mitigationLog).toContain("mitigations.jsonl");
   });
