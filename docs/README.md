@@ -10,6 +10,7 @@ Everything you need to run, understand, and verify LAX.
 | [`architecture.md`](architecture.md) | System architecture: daemon, mitigation gate, webhook path, dashboard |
 | [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md) | Evidence log: what was really tested and what worked (live fire, gate outcomes, CLI battery) |
 | [`SCOPE.md`](SCOPE.md) | What is and isn't in scope (and why) |
+| [`ALERTS.md`](ALERTS.md) | Optional: Discord/Slack operator alerts — setup, security notes, troubleshooting |
 | [`zero-cost-testnet-plan.md`](zero-cost-testnet-plan.md) | The Base Sepolia live-testnet submission path |
 | [`SUBMISSION-DRAFT.md`](SUBMISSION-DRAFT.md) | DoraHacks BUIDL form answers + pre-deadline checklist |
 | [`FEEDBACK.md`](FEEDBACK.md) | Onboarding-DX bounty report: KeeperHub platform friction points and workarounds |

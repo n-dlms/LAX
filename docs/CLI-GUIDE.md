@@ -402,6 +402,10 @@ Every trigger prints the four gate stages as they're decided:
 
 ## 10. Operator alerts (Discord & Slack)
 
+> This is an **optional** feature — skip it freely. Full setup walkthrough,
+> security notes, and troubleshooting live in
+> [`docs/ALERTS.md`](ALERTS.md).
+
 LAX can message you the moment something happens: a trigger, a gate block, a
 fire, or a failure. This is what you enable when the daemon runs unattended.
 

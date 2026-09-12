@@ -89,7 +89,7 @@ npm run lax -- autopilot daemon --dry-run   # full pipeline, never fires
 | **Liquidation CLI** | Zero-dependency terminal binary: REPL, one-shot commands, piped scripting. HF gauge + sparkline, what-if crash analysis, self-running demo — [full manual](docs/CLI-GUIDE.md) |
 | **Autopilot daemon** | Multi-position, multi-network monitor loop with per-position thresholds, cooldowns, and hysteresis |
 | **Mitigation gate** | Nothing fires without passing HF-math verification → preflight `eth_call` simulation → safety bounds → spend caps |
-| **Operator alerts** | Discord/Slack webhook notifications on trigger, block, fire, failure (`lax alert --test`) |
+| **Operator alerts** | Optional Discord/Slack notifications on trigger, block, fire, failure (`lax alert --test`) — [setup guide](docs/ALERTS.md) |
 | **Persistent evidence** | Append-only mitigation log with stage-by-stage replay (`lax runs` · `lax explain`) |
 | **Web terminal** | The browser dashboard shares the *same command core* — embedded terminal, monitoring and audit views |
 | **AI agent** | `lax-guardian` (OpenCode + NVIDIA NIM) decides when to act; [system prompt + skills + runbook](agent/) |
