@@ -58,6 +58,11 @@ and the background daemon that defends positions around the clock.
 | **The gate** | Four independent safety checks that must all pass before anything fires |
 | **Dry-run** | Executing the full pipeline *except* the part that moves money |
 
+> 📚 **New to DeFi lending entirely?** [`GLOSSARY.md`](GLOSSARY.md) explains
+> every concept from zero — what WETH is, why HF falls, how bots liquidate in
+> the same block as a price move, and why defending early is three times
+> cheaper — with worked numbers for each.
+
 ---
 
 ## 3. Getting started
