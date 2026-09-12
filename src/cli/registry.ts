@@ -5,6 +5,7 @@ import { handleGuardian } from "./actions/guardian";
 import { handleOnchain } from "./actions/onchain";
 import { handleAudit } from "./actions/audit";
 import { handleWhatif } from "./actions/whatif";
+import { handleDemo } from "./actions/demo";
 import { handleSystem } from "./actions/system";
 import { handleHelp, handleMan, handleAliases } from "./actions/help";
 
@@ -22,6 +23,7 @@ reg(handleGuardian);
 reg(handleOnchain);
 reg(handleAudit);
 reg({ whatif: handleWhatif });
+reg({ demo: handleDemo });
 reg(handleSystem);
 handlers["help"] = handleHelp;
 handlers["?"] = handleHelp;
@@ -74,6 +76,9 @@ add(def("debt", "lax debt [token]", "Debt details (amount, USD value)", "monitor
 }));
 add(def("whatif", "lax whatif [--shock PCT] [--lt LT]", "What-if: collateral drops PCT% — shocked HF and defense cost", "monitor", "rpc-read", {
   examples: ["lax whatif", "lax whatif --shock 30", "lax whatif --shock 10 --lt 0.85"],
+}));
+add(def("demo", "lax demo [--shock PCT] [--yes] [--webhook]", "Self-running demo: shock → gate → execute → verify (dry-run by default; --yes executes on the fork, --webhook also fires KeeperHub)", "monitor", "rpc-read", {
+  examples: ["lax demo", "lax demo --shock 15", "lax demo --yes"],
 }));
 add(def("collateral", "lax collateral [token]", "Collateral details (supplied, deposited)", "monitor", "rpc-read", {
   aliases: ["coll"],

@@ -2,6 +2,13 @@
 set -euo pipefail
 
 # deploy-workflow.sh — Create or update the LAX KeeperHub workflow
+#
+# NOTE on amounts: the platform rejects `{{trigger.body.*}}` template refs at
+# runtime (unresolved-reference abort), so the workflow carries a STATIC repay
+# amount (default 40 USDC — sized to over-repair the seeded fork scenario).
+# LAX's exact fire-time amount is computed in the payload and verified by the
+# gate; the static/workflow-amount limitation is documented in
+# docs/SUBMISSION-DRAFT.md ("what still breaks").
 
 KEEPERHUB_API_KEY="${KEEPERHUB_API_KEY:?}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -49,7 +56,7 @@ nodes = [
           }
         }),
         'spenderAddress': '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
-        'amount': '{{trigger.body.repay_amount_human}}'
+        'amount': '${LAX_STATIC_REPAY_HUMAN:-40}'
       }
     }
   },
@@ -62,7 +69,7 @@ nodes = [
         'actionType': 'aave-v3/repay',
         'network': '8453',
         'asset': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-        'amount': '{{trigger.body.repay_amount_usdc}}',
+        'amount': '${LAX_STATIC_REPAY_USDC:-40000000}',
         'interestRateMode': '2',
         'onBehalfOf': '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
       }
