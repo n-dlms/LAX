@@ -227,6 +227,8 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
   const [executionId, setExecutionId] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [localSteps, setLocalSteps] = useState<MitigationStep[] | null>(null);
+  const localFinalRef = useRef<MitigationEvent | null>(null);
+  const localDoneRef = useRef(false);
   const [retryNonce, setRetryNonce] = useState(0);
   const borrowerAddress = event.borrowerAddress ?? LAX_CONFIG.BORROWER_ADDRESS;
   const rpcUrl = event.rpcUrl ?? LAX_CONFIG.FORK_RPC;
@@ -399,13 +401,19 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
         currentStepId = "verify";
         await new Promise((r) => setTimeout(r, 2000));
 
-        const accountData = await rpcRequest<string>("eth_call", [{
-          to: poolAddr,
-          data: "0xbf92857c" + encodeAddress(borrowAddr),
-        }, "latest"], rpcUrl);
-
-        const hfRaw = BigInt("0x" + accountData.slice(2 + 32 * 5, 2 + 32 * 6));
-        const newHf = Number(hfRaw) / 1e18;
+        // A read immediately after the repay tx can race block settlement and
+        // return a transient 0 — retry before declaring the verify failed.
+        let newHf = 0;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (cancelled) return;
+          const accountData = await rpcRequest<string>("eth_call", [{
+            to: poolAddr,
+            data: "0xbf92857c" + encodeAddress(borrowAddr),
+          }, "latest"], rpcUrl);
+          newHf = Number(BigInt("0x" + accountData.slice(2 + 32 * 5, 2 + 32 * 6))) / 1e18;
+          if (newHf > 0) break;
+          await new Promise((r) => setTimeout(r, 1500));
+        }
         const hfOk = newHf >= LAX_CONFIG.HF_TARGET;
 
         if (cancelled) return;
@@ -433,6 +441,7 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
             status: "resolved",
             failureReason: null,
           };
+          localFinalRef.current = finalEv;
           setTimeout(() => { if (!cancelled) onComplete(finalEv); }, 1500);
         } else {
           setLocalError(verifyStep.error);
@@ -458,15 +467,20 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
       }
     }
 
-    executeLocal();
+    executeLocal().finally(() => { localDoneRef.current = true; });
     return () => { cancelled = true; };
   }, [executionId, retryNonce, event, onComplete, borrowerAddress, rpcUrl]);
 
   // Monitor completion via KeeperHub polling - merge steps
   useEffect(() => {
     if (polledEvent && (polledEvent.status === "resolved" || polledEvent.status === "failed")) {
+      // The relayer can report "failed" while the local fork repair is still
+      // running (it executes on the real network, the fork locally). Wait for
+      // the local path to finish before letting a remote failure decide.
+      if (polledEvent.status === "failed" && !localDoneRef.current) return;
       const timeout = setTimeout(() => {
         const local = localStepsRef.current;
+        const localFinal = localFinalRef.current;
         let mergedSteps: MitigationStep[] = [];
         if (polledEvent.steps.length > 0 && (!local || local.length === 0)) {
           mergedSteps = polledEvent.steps;
@@ -486,11 +500,10 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
           mergedSteps = [];
         }
         const localArr = local ?? [];
-        const localAllSuccess = localArr.length > 0 && localArr.every((s) => s.status === "success");
-        // The KeeperHub relayer executes on the REAL network named in the
-        // workflow — it cannot reach a local Anvil fork, so its status can be
-        // "failed" while the local fork repair fully succeeded. Evidence from
-        // the fork wins: only report failed when the local steps didn't save us.
+        const localAllSuccess = localFinal?.status === "resolved"
+          || (localFinal === null && localArr.length > 0 && localArr.every((s) => s.status === "success"));
+        // Fork evidence wins: the relayer's "failed" cannot override a local
+        // on-chain success, and the locally read final HF is the real one.
         const finalStatus = localAllSuccess ? "resolved" : polledEvent.status;
         onComplete({
           ...event,
@@ -501,7 +514,7 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
           exactRepayAmount: event.exactRepayAmount,
           status: finalStatus,
           steps: mergedSteps.length > 0 ? mergedSteps : (local ?? []),
-          finalHF: polledEvent.finalHF ?? event.finalHF,
+          finalHF: localFinal?.finalHF ?? polledEvent.finalHF ?? event.finalHF,
           failureReason: finalStatus === "resolved" ? null : (polledEvent.failureReason ?? null),
         });
       }, 2000);
@@ -513,6 +526,8 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
     setLocalError(null);
     setLocalSteps(null);
     localStepsRef.current = null;
+    localFinalRef.current = null;
+    localDoneRef.current = false;
     if (!executionId) {
       hasTriggeredRef.current = false;
       // will trigger via direct call

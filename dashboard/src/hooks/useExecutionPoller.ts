@@ -64,7 +64,9 @@ export function parseExecutionSteps(json: Record<string, unknown>, startedAt: nu
       status,
       txHash: tx?.hash ?? null,
       gasUsed: tx?.gasUsed ?? null,
-      error: (json.errorContext as { error?: string } | null)?.error ?? null,
+      // errorContext is workflow-global — only meaningful on the failed step;
+      // showing it on successful steps reads as a contradiction
+      error: status === "failed" ? ((json.errorContext as { error?: string } | null)?.error ?? null) : null,
       retries: 0,
       startedAt: startedAt,
       finishedAt: status === "success" || status === "failed" ? Date.now() : null,
