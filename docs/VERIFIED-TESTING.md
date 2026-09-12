@@ -178,3 +178,33 @@ KeeperHub workflow with its own pool/USDC — nothing is hardcoded to a chain.
 - Fork blocks mine on a 1 s interval; reads immediately after a state-changing
   transaction may see the prior block (the CLI waits for inclusion on price writes).
 - Snapshot/compare/history are session-scoped by design (verified within one REPL session).
+
+## 10. Dashboard accuracy audit (2026-09-12)
+
+Every dashboard-specific code path was audited against the CLI core and the
+live KeeperHub API, then runtime-tested via the same HTTP calls the browser
+makes:
+
+- **Webhook fire path (fixed)**: the dashboard fired with the `kh_` org key →
+  `wrong_key_type` 401. Now prefers the `wfb_` webhook key (same order as
+  `src/keeperhub.ts`); verified live: fire through the dev proxy returns
+  `{"executionId":"z0mzq6kc2umblzffv2hxi","status":"running"}` with HTTP 200.
+- **Execution-status poller (fixed, two bugs)**: the endpoint requires an
+  `Authorization` header — without it the API answers 404 "Execution not
+  found" (the poller silently stopped, so step progress never came from
+  KeeperHub). It also parsed a `steps[]` shape that does not exist; the real
+  response is `nodeStatuses[]` + `transactionHashes[]`. Both fixed; the parser
+  is regression-tested against the verbatim captured response
+  (`tests/execution-poller.test.ts`).
+- **Completion precedence (fixed)**: when the KeeperHub relayer reports
+  "failed" (it executes on the real network and cannot reach a local fork) but
+  the local fork steps all succeeded, the completion screen now reports
+  **resolved** — fork evidence wins.
+- **Verified correct as-is**: approve/repay/verify selectors, impersonation +
+  calldata + gas in the local fallback path, position poller (selector
+  0xbf92857c, offline cache), price-shock handler (ANVIL_SIGNER, setAssetPrice
+  0x51323f72), merge precedence (local successes over polled).
+- Known platform limitation surfaced honestly by the fixed poller: the fork
+  workflow's repay step fails on the relayer side ("Insufficient BASE balance"
+  on chain 8453) — the local fork execution is the real repair; the workflow
+  is the audit trail.

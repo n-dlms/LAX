@@ -485,6 +485,13 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
         } else {
           mergedSteps = [];
         }
+        const localArr = local ?? [];
+        const localAllSuccess = localArr.length > 0 && localArr.every((s) => s.status === "success");
+        // The KeeperHub relayer executes on the REAL network named in the
+        // workflow — it cannot reach a local Anvil fork, so its status can be
+        // "failed" while the local fork repair fully succeeded. Evidence from
+        // the fork wins: only report failed when the local steps didn't save us.
+        const finalStatus = localAllSuccess ? "resolved" : polledEvent.status;
         onComplete({
           ...event,
           ...polledEvent,
@@ -492,8 +499,10 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
           hfAtTrigger: event.hfAtTrigger,
           debtBase: event.debtBase,
           exactRepayAmount: event.exactRepayAmount,
+          status: finalStatus,
           steps: mergedSteps.length > 0 ? mergedSteps : (local ?? []),
           finalHF: polledEvent.finalHF ?? event.finalHF,
+          failureReason: finalStatus === "resolved" ? null : (polledEvent.failureReason ?? null),
         });
       }, 2000);
       return () => clearTimeout(timeout);

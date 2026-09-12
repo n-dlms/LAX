@@ -1,26 +1,54 @@
 import { useEffect, useRef, useState } from "react";
 import type { MitigationEvent, MitigationStep } from "../types";
 
-function keeperHubApi(path: string): string {
-  return import.meta.env.DEV ? `/keeperhub${path}` : `https://app.keeperhub.com${path}`;
+/** Vite env access that also typechecks outside the dashboard (root tsc has no
+ *  vite/client types) — returns {} in plain tsc/node contexts. */
+function viteEnv(): Record<string, string | boolean | undefined> {
+  return (import.meta as unknown as { env?: Record<string, string | boolean | undefined> }).env ?? {};
 }
 
-function parseExecutionSteps(json: Record<string, unknown>, startedAt: number): MitigationStep[] {
-  const steps = (json.steps ?? []) as Array<Record<string, unknown>>;
-  const out: MitigationStep[] = [];
+function keeperHubApi(path: string): string {
+  return viteEnv().DEV ? `/keeperhub${path}` : `https://app.keeperhub.com${path}`;
+}
+
+/** The execution-status endpoint requires an Authorization header — without it
+ *  the API answers 404 "Execution not found" even for real executions. The
+ *  org key (kh_*) is accepted for reads; the webhook key works as fallback. */
+function keeperHubAuthHeaders(): Record<string, string> {
+  const key = (viteEnv().VITE_KEEPERHUB_API_KEY ?? viteEnv().VITE_KEEPERHUB_WEBHOOK_KEY ?? "") as string;
+  return key ? { Authorization: `Bearer ${key}` } : {};
+}
+
+interface NodeStatus {
+  nodeId: string;
+  status: string;
+}
+
+interface ChainTx {
+  hash: string;
+  nodeId: string;
+  gasUsed?: string;
+}
+
+/** Parse the real workflow-status response shape:
+ *  { status, nodeStatuses: [{nodeId, status}], progress, errorContext,
+ *    transactionHashes: [{hash, nodeId, gasUsed, ...}] } */
+export function parseExecutionSteps(json: Record<string, unknown>, startedAt: number): MitigationStep[] {
+  const nodes = (json.nodeStatuses ?? []) as NodeStatus[];
+  const txs = (json.transactionHashes ?? []) as ChainTx[];
   const stepIdMap: Record<string, "approve" | "repay" | "verify"> = {
     approve_usdc: "approve",
     repay: "repay",
     verify_hf: "verify",
   };
 
-  for (const s of steps) {
-    const nodeId = (s.nodeId ?? s.id ?? "") as string;
-    const stepId = stepIdMap[nodeId];
+  const out: MitigationStep[] = [];
+  for (const s of nodes) {
+    const stepId = stepIdMap[s.nodeId];
     if (!stepId) continue;
 
-    const output = s.output as Record<string, unknown> | null;
-    const rawStatus = (s.status as string) ?? "pending";
+    const tx = txs.find((t) => t.nodeId === s.nodeId);
+    const rawStatus = s.status ?? "pending";
     const status: MitigationStep["status"] =
       rawStatus === "success" || rawStatus === "completed"
         ? "success"
@@ -34,10 +62,10 @@ function parseExecutionSteps(json: Record<string, unknown>, startedAt: number): 
       stepId,
       label: stepId === "approve" ? "Approve USDC" : stepId === "repay" ? "Repay Aave" : "Verify HF",
       status,
-      txHash: ((output?.transactionHash ?? output?.txHash ?? s.transactionHash) as string) ?? null,
-      gasUsed: ((output?.gasUsed ?? s.gasUsed) as string) ?? null,
-      error: (s.error as string) ?? null,
-      retries: ((s.retries ?? s.retryCount ?? 0) as number),
+      txHash: tx?.hash ?? null,
+      gasUsed: tx?.gasUsed ?? null,
+      error: (json.errorContext as { error?: string } | null)?.error ?? null,
+      retries: 0,
       startedAt: startedAt,
       finishedAt: status === "success" || status === "failed" ? Date.now() : null,
     });
@@ -96,16 +124,21 @@ export function useExecutionPoller(
 
         const resp = await fetch(
           keeperHubApi(`/api/workflows/executions/${execId}/status`),
-          { signal: controller.signal },
+          { signal: controller.signal, headers: keeperHubAuthHeaders() },
         );
         clearTimeout(timer);
 
         if (resp.status === 401 || resp.status === 403) {
-          // Status endpoint is session-only; stop polling gracefully
+          // No usable key configured — stop polling gracefully
           if (!cancelled && mountedRef.current) {
             stoppedRef.current = true;
             if (intervalId) clearInterval(intervalId);
           }
+          return;
+        }
+        if (resp.status === 404) {
+          // Not indexed yet (fire just happened) or not visible without auth —
+          // keep polling either way
           return;
         }
         if (!resp.ok) {
@@ -137,7 +170,7 @@ export function useExecutionPoller(
           steps,
           finalHF,
           status: mitigationStatus,
-          failureReason: (json.error as string) ?? null,
+          failureReason: (json.errorContext as { error?: string } | null)?.error ?? (json.error as string) ?? null,
         };
 
         if (!cancelled && mountedRef.current) {
