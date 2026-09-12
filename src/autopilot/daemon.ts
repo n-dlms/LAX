@@ -82,6 +82,17 @@ export async function runAutopilot(daemonOpts: DaemonOptions = {}): Promise<void
     log(TOKENS.warn, style.yellow, "SIGINT — finishing current poll, then shutting down");
   };
   process.on("SIGINT", onSignal);
+  process.on("unhandledRejection", (reason) => {
+    const msg = reason instanceof Error ? reason.message : String(reason);
+    appendMitigation({ kind: "fire-failed", reason: `unhandled rejection: ${msg}` });
+    log(TOKENS.fail, style.red, `unhandled rejection (logged, continuing): ${msg}`);
+  });
+  process.on("uncaughtException", (err) => {
+    appendMitigation({ kind: "fire-failed", reason: `uncaught exception: ${err.message}` });
+    log(TOKENS.fail, style.red, `uncaught exception — exiting: ${err.message}`);
+    process.exitCode = 1;
+    running = false;
+  });
 
   while (running) {
     let anyFired = false;
@@ -111,6 +122,9 @@ export async function runAutopilot(daemonOpts: DaemonOptions = {}): Promise<void
   }
 
   appendMitigation({ kind: "shutdown" });
+  process.off("SIGINT", onSignal);
+  process.removeAllListeners("unhandledRejection");
+  process.removeAllListeners("uncaughtException");
   log(TOKENS.shield, style.gray, "autopilot stopped");
 }
 

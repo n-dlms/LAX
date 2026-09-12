@@ -77,40 +77,32 @@ export async function fetchPosition(
 }
 
 // --- persisted guardian state (~/.lax/state.json) ---
-import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+// Shared with the daemon (src/autopilot/state.ts): same file, same log. The
+// CLI merges its guardian fields into the existing state instead of rewriting
+// the file, so `lax arm` cannot clobber daemon fields (lastFiredBy, spend).
+import { LAX_CONFIG as CFG } from "./lax-config";
+import {
+  loadState as loadDaemonState,
+  saveState as saveDaemonState,
+  appendMitigation,
+  mitigationLogPath as mitigationLogPathShared,
+  type MitigationRecord,
+} from "../autopilot/state";
 
-const LAX_DIR = process.env.LAX_STATE_DIR || join(homedir(), ".lax");
-const STATE_FILE = join(LAX_DIR, "state.json");
-const MITIGATION_LOG = join(LAX_DIR, "mitigations.jsonl");
-
-interface PersistedState {
-  guardian: GuardianState;
-}
-
-function loadState(): PersistedState {
-  try {
-    return JSON.parse(readFileSync(STATE_FILE, "utf8")) as PersistedState;
-  } catch {
-    return { guardian: { enabled: false, blocked: false, threshold: LAX_CONFIG.HF_TRIGGER, target: LAX_CONFIG.HF_TARGET } };
-  }
-}
-
-let guardianState: GuardianState = loadState().guardian;
+let guardianState: GuardianState = loadDaemonState(CFG.HF_TRIGGER, CFG.HF_TARGET).guardian;
 
 function persistState(): void {
-  mkdirSync(LAX_DIR, { recursive: true });
-  writeFileSync(STATE_FILE, JSON.stringify({ guardian: guardianState }, null, 2));
+  const merged = loadDaemonState(CFG.HF_TRIGGER, CFG.HF_TARGET);
+  merged.guardian = { ...merged.guardian, ...guardianState };
+  saveDaemonState(merged);
 }
 
 export function appendMitigationLog(entry: Record<string, unknown>): void {
-  mkdirSync(LAX_DIR, { recursive: true });
-  appendFileSync(MITIGATION_LOG, JSON.stringify({ ts: Date.now(), ...entry }) + "\n");
+  appendMitigation(entry as unknown as MitigationRecord);
 }
 
 export function mitigationLogPath(): string {
-  return MITIGATION_LOG;
+  return mitigationLogPathShared();
 }
 
 

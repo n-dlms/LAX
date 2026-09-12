@@ -21,15 +21,17 @@ function walletFilePath(): string {
 
 /** Reads the active Turnkey wallet address from ~/.keeperhub/wallet.json. */
 export function readWalletFileAddress(): string | null {
+  const path = walletFilePath();
+  if (!existsSync(path)) return null;
+  let parsed: { walletAddress?: string };
   try {
-    const path = walletFilePath();
-    if (!existsSync(path)) return null;
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as { walletAddress?: string };
-    const addr = parsed.walletAddress;
-    return addr && ADDR_RE.test(addr) ? addr : null;
-  } catch {
+    parsed = JSON.parse(readFileSync(path, "utf8")) as { walletAddress?: string };
+  } catch (err) {
+    console.error(`[lax] ${path} is not valid JSON — ignoring (${(err as Error).message})`);
     return null;
   }
+  const addr = parsed.walletAddress;
+  return addr && ADDR_RE.test(addr) ? addr : null;
 }
 
 export function getWalletAddress(): WalletInfo {

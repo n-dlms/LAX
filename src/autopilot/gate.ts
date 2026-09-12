@@ -1,7 +1,7 @@
-// The mitigation gate — nothing fires without passing all three stages.
+// The mitigation gate — nothing fires without passing all four stages.
 // Stage 1: HF math verification (repay amount reaches the target within tolerance)
 // Stage 2: preflight simulation (dry-run approve+repay against the RPC)
-// Stage 3: safety bounds (selector allowlist + per-block/per-day spend caps)
+// Stage 3: safety bounds (selector allowlist) + Stage 4: per-block/per-day spend caps
 // This was previously a manual/procedural step documented in agent/skills —
 // now it is wired into every fire path: daemon, CLI engage, and hf-listener.
 import { runCritique, type CritiqueReport } from "../critique-agent";

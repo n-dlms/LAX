@@ -98,16 +98,18 @@ export function loadPositions(configPath?: string): {
   ];
 
   let rawPositions: RawConfig["positions"] = [];
+  let configFileExists = false;
   if (existsSync(path)) {
+    configFileExists = true;
     try {
       const parsed = JSON.parse(readFileSync(path, "utf8")) as RawConfig;
       rawPositions = parsed.positions ?? [];
     } catch {
-      /* already reported above */
+      /* parse failure already reported in the networks pass above */
     }
   }
   if (!Array.isArray(rawPositions) || rawPositions.length === 0) {
-    if (existsSync(path)) errors.push("positions array empty — using default");
+    if (configFileExists) errors.push("positions array empty — using default");
     return { positions: fallback, errors };
   }
 

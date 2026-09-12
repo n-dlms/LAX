@@ -7,8 +7,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 export const LAX_DIR = process.env.LAX_STATE_DIR || join(homedir(), ".lax");
-const STATE_FILE = join(LAX_DIR, "state.json");
-const MITIGATION_LOG = join(LAX_DIR, "mitigations.jsonl");
+export const STATE_FILE = join(LAX_DIR, "state.json");
+export const MITIGATION_LOG = join(LAX_DIR, "mitigations.jsonl");
 
 export interface GuardianState {
   enabled: boolean;
@@ -33,11 +33,27 @@ export function defaultDaemonState(threshold: number, target: number): DaemonSta
 }
 
 export function loadState(threshold: number, target: number): DaemonState {
+  const fresh = defaultDaemonState(threshold, target);
+  let raw: string;
   try {
-    const parsed = JSON.parse(readFileSync(STATE_FILE, "utf8")) as Partial<DaemonState>;
-    return { ...defaultDaemonState(threshold, target), ...parsed, guardian: { ...defaultDaemonState(threshold, target).guardian, ...parsed.guardian } };
+    raw = readFileSync(STATE_FILE, "utf8");
   } catch {
-    return defaultDaemonState(threshold, target);
+    return fresh;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<DaemonState>;
+    return { ...fresh, ...parsed, guardian: { ...fresh.guardian, ...parsed.guardian } };
+  } catch {
+    // A corrupt state must not silently reset cooldown/spend memory — preserve
+    // the file for inspection and start fresh.
+    const backup = `${STATE_FILE}.corrupt-${Date.now()}`;
+    try {
+      writeFileSync(backup, raw);
+      console.error(`[lax] ${STATE_FILE} is not valid JSON — backed up to ${backup}, starting fresh`);
+    } catch {
+      console.error(`[lax] ${STATE_FILE} is not valid JSON and could not be backed up — starting fresh`);
+    }
+    return fresh;
   }
 }
 
@@ -65,7 +81,16 @@ export function appendMitigation(record: MitigationRecord): void {
 export function readMitigations(limit = 50): MitigationRecord[] {
   if (!existsSync(MITIGATION_LOG)) return [];
   const lines = readFileSync(MITIGATION_LOG, "utf8").trim().split("\n").filter(Boolean);
-  return lines.slice(-limit).map((l) => JSON.parse(l) as MitigationRecord);
+  const records: MitigationRecord[] = [];
+  for (const line of lines.slice(-limit)) {
+    try {
+      records.push(JSON.parse(line) as MitigationRecord);
+    } catch {
+      // one corrupt line (e.g. truncated by a crash mid-write) must not hide the rest
+      console.error(`[lax] skipping corrupt line in ${MITIGATION_LOG}`);
+    }
+  }
+  return records;
 }
 
 export function mitigationLogPath(): string {
