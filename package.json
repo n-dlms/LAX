@@ -1,18 +1,29 @@
 {
   "name": "lax",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Proactive Aave V3 liquidation defender on KeeperHub",
+  "description": "LAX — proactive Aave V3 liquidation defender: Liquidation CLI + autopilot daemon on KeeperHub",
   "type": "module",
   "bin": {
     "lax": "bin/lax.ts"
   },
   "scripts": {
+    "setup": "bash scripts/setup.sh",
+    "demo": "bash scripts/demo-up.sh",
+    "lax": "tsx bin/lax.ts",
+    "dev": "bash scripts/lax",
+    "fire": "bash scripts/fire-sepolia.sh",
+    "dry-run": "bash scripts/dry-run.sh",
+    "fork:start": "bash scripts/start-fork.sh",
+    "fork:stop": "bash scripts/fork-shutdown.sh",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "bash scripts/lax",
-    "lax": "tsx bin/lax.ts",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "lint:dashboard": "tsc --noEmit -p dashboard",
+    "build": "npm run build --prefix dashboard"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
