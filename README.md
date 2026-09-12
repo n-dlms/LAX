@@ -22,6 +22,24 @@
 3. The exact repay amount is computed **at fire time** and passed in the HMAC-signed webhook payload; KeeperHub executes deterministically — read HF → approve → repay → verify — with the Turnkey agentic wallet, MEV-protected private routing, and a full audit trail
 4. Every trigger, gate decision, and fire is appended to `~/.lax/mitigations.jsonl` and visible via `lax runs` / `app.keeperhub.com/runs/<id>`
 
+## Repository Map
+
+| Path | What lives there |
+|------|------------------|
+| `bin/lax.ts` | The `lax` binary entrypoint (REPL, one-shot, piped scripting) |
+| `src/cli/` | The command core — parser, registry, executor, UI rendering (shared with the dashboard) |
+| `src/autopilot/` | The daemon: multi-position monitor loop, mitigation gate, persisted state |
+| `src/keeperhub.ts` | Webhook firing + HMAC signing + run permalinks |
+| `src/config.ts` | Every address, threshold, and cap in one file |
+| `dashboard/` | Web terminal — same command core in the browser, monitoring + audit views |
+| `agent/` | The AI layer: `lax-guardian` system prompt, skills, demo runbook (OpenCode + NVIDIA NIM) |
+| `scripts/` | Demo lifecycle: `setup.sh`, `demo-up.sh`, `fire-sepolia.sh`, fork start/stop/seed |
+| `bootstrap/` | Minimal starter template (fork demo only) for teams building their own guardian |
+| `contracts/MockOracle.sol` | Fork-demo scaffolding to shock the price oracle (never deployed live) |
+| `api/` | Edge proxy example so the browser never holds your API key (HMAC-verified) |
+| `docs/` | Curated docs — start at [`docs/README.md`](docs/README.md) |
+| `tests/` | Vitest suite (14 files) — repay math, gate stages, preflight, safety, config |
+
 ## The Liquidation CLI
 
 One zero-dependency binary, two surfaces (standalone terminal + the dashboard's
@@ -52,7 +70,7 @@ health check — idempotent and self-healing if saved fork state is corrupt):
 ## Live Fire (Base Sepolia — judge-safe, real transactions)
 
 The deterministic fork demo never touches real funds. The **live path** runs on
-Base Sepolia (chain 84532) with sponsored gas and tiny amounts — a real
+Base Sepolia (chain 84532) with free testnet gas — a real
 webhook-triggered workflow executing read HF → approve → repay → verify:
 
 ```bash
