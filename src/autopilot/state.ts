@@ -68,9 +68,15 @@ export interface MitigationRecord {
   kind: "trigger" | "gate-blocked" | "webhook-fired" | "fire-failed" | "dry-run" | "cooldown" | "shutdown";
   hf?: number;
   repayUsdc?: string;
+  repayHuman?: string;
   executionId?: string;
   reason?: string;
+  /** Compact per-stage verdicts, e.g. "hf-math:ok,preflight:FAIL". */
   stages?: string;
+  /** Full gate stage detail — what `lax explain` replays. */
+  stagesDetail?: { name: string; passed: boolean; detail: string }[];
+  position?: string;
+  network?: string;
 }
 
 export function appendMitigation(record: MitigationRecord): void {

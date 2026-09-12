@@ -199,13 +199,13 @@ async function pollOnce(
   }
 
   if (!gate.approved) {
-    appendMitigation({ kind: "gate-blocked", hf, repayUsdc: repayUsdc.toString(), reason: gate.summary, stages: gate.stages.map((st) => `${st.name}:${st.passed ? "ok" : "FAIL"}`).join(",") });
+    appendMitigation({ kind: "gate-blocked", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), reason: gate.summary, stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network });
     log(TOKENS.fail, style.red, `GATE BLOCKED — nothing was fired. This is the safety system working.`);
     return { decision: "gate-blocked", fired: false };
   }
 
   if (daemonOpts.dryRun) {
-    appendMitigation({ kind: "dry-run", hf, repayUsdc: repayUsdc.toString(), reason: "gate approved; dry-run mode" });
+    appendMitigation({ kind: "dry-run", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), reason: "gate approved; dry-run mode", stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network });
     log(TOKENS.info, style.cyan, `DRY-RUN complete — gate approved, webhook NOT fired`);
     return { decision: "dry-run-approved", fired: false };
   }
@@ -224,12 +224,12 @@ async function pollOnce(
     }, { workflowId: position.workflowId });
     if (!fire.ok) throw new Error(`KeeperHub ${fire.status}: ${fire.raw.slice(0, 200)}`);
 
-    appendMitigation({ kind: "webhook-fired", hf, repayUsdc: repayUsdc.toString(), executionId: fire.executionId });
+    appendMitigation({ kind: "webhook-fired", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), executionId: fire.executionId, stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network, reason: "autopilot-trigger" });
     log(TOKENS.bolt, style.cyan, `fired → execution ${style.bold(fire.executionId)}`);
     console.log(`     ${style.gray("audit trail:")} ${style.underline(style.blue(runUrl(fire.executionId)))}`);
     return { decision: "fired", fired: true };
   } catch (err) {
-    appendMitigation({ kind: "fire-failed", hf, repayUsdc: repayUsdc.toString(), reason: (err as Error).message });
+    appendMitigation({ kind: "fire-failed", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), reason: (err as Error).message, stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network });
     log(TOKENS.fail, style.red, `fire failed: ${(err as Error).message}`);
     return { decision: "fire-failed", fired: false };
   }
@@ -237,4 +237,8 @@ async function pollOnce(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function compactStages(gate: { stages: { name: string; passed: boolean }[] }): string {
+  return gate.stages.map((st) => `${st.name}:${st.passed ? "ok" : "FAIL"}`).join(",");
 }

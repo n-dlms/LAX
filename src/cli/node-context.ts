@@ -132,7 +132,7 @@ export async function fireMitigationWebhook(reason: string): Promise<{ execution
     rpcUrl: LAX_CONFIG.FORK_RPC,
   });
   if (!gate.approved) {
-    appendMitigationLog({ kind: "gate-blocked", reason, repayUsdc: repayUsdc.toString(), gateSummary: gate.summary });
+    appendMitigationLog({ kind: "gate-blocked", reason, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), gateSummary: gate.summary, stagesDetail: gate.stages });
     return { error: `mitigation gate blocked the fire (${gate.summary}) — nothing was executed` };
   }
 
@@ -161,6 +161,7 @@ export async function fireMitigationWebhook(reason: string): Promise<{ execution
     repayHuman: usdcToString(repayUsdc),
     hfAtTrigger: (Number(pos.healthFactor) / 1e18).toFixed(4),
     workflowId: LAX_CONFIG.WORKFLOW_ID,
+    stagesDetail: gate.stages,
   });
   return { executionId: fire.executionId, repayUsdc, hfAtTrigger: Number(pos.healthFactor) / 1e18, gate: gate.summary };
 }

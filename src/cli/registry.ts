@@ -215,8 +215,11 @@ add(def("transfer", "lax transfer <token> <amount> <address> [--local]", "Transf
 }));
 
 // ── Audit & Observability ──
-add(def("runs", "lax runs [--limit N]", "List recent KeeperHub workflow executions", "audit", "local-only", {
-  examples: ["lax runs", "lax runs --limit 10"],
+add(def("runs", "lax runs [--limit N] [--json]", "Mitigation history — every trigger, gate decision, and fire (persisted)", "audit", "local-only", {
+  examples: ["lax runs", "lax runs --limit 30", "lax runs --json"],
+}));
+add(def("explain", "lax explain <execution-id | runs-index>", "Replay a gate decision stage by stage", "audit", "local-only", {
+  examples: ["lax explain 1", "lax explain 9bc31ofdfca1m62b2v29t"],
 }));
 add(def("run", "lax run <id>", "Show details of a specific execution", "audit", "local-only", {
   examples: ["lax run exec-xyz-789"],
