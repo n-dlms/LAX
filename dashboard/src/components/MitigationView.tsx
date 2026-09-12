@@ -246,9 +246,11 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
 
   const triggerWorkflow = useCallback(async () => {
     try {
-      // M4: try edge proxy first (holds API key server-side), fallback to direct VITE key
+      // M4: try edge proxy first (holds API key server-side), fallback to direct key.
+      // The webhook endpoint requires the wfb_* webhook key — the kh_* org key is
+      // rejected (wrong_key_type). Same preference order as src/keeperhub.ts.
       const proxyUrl = `/api/keeperhub-proxy/workflows/${LAX_CONFIG.WORKFLOW_ID}/webhook`;
-      const apiKey = import.meta.env.VITE_KEEPERHUB_API_KEY ?? "";
+      const apiKey = import.meta.env.VITE_KEEPERHUB_WEBHOOK_KEY ?? import.meta.env.VITE_KEEPERHUB_API_KEY ?? "";
       const useProxy = !apiKey; // if no VITE key, try proxy
       let resp: Response;
       const payload = {
