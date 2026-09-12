@@ -50,8 +50,16 @@ export async function runAutopilot(daemonOpts: DaemonOptions = {}): Promise<void
   const { positions, errors } = loadPositions();
   const monitored = daemonOpts.only ? positions.filter((p) => p.name === daemonOpts.only) : positions;
   for (const e of errors) log(TOKENS.warn, style.yellow, `config: ${e}`);
+  if (!process.env.LAX_CONFIG_PATH && !daemonOpts.only) {
+    try {
+      const { existsSync } = await import("node:fs");
+      if (!existsSync("lax.config.json")) {
+        log(TOKENS.info, style.cyan, `no lax.config.json — using built-in default position (copy lax.config.example.json to customize)`);
+      }
+    } catch { /* best-effort hint only */ }
+  }
   if (monitored.length === 0) {
-    log(TOKENS.fail, style.red, `no positions to monitor${daemonOpts.only ? ` for name "${daemonOpts.only}"` : ""}`);
+    log(TOKENS.fail, style.red, `no positions to monitor${daemonOpts.only ? ` for name "${daemonOpts.only}" — check names in lax.config.json` : ""}`);
     return;
   }
 

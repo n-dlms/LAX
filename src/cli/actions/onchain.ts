@@ -40,6 +40,9 @@ function humanizeRpcError(err: unknown): string {
 }
 
 async function localApprove(ctx: CommandContext, token: string, spender: string, amount: bigint): Promise<string> {
+  // Fork-only: the borrower is Anvil dev account #0, unlocked by default on the
+  // local fork — eth_sendTransaction works with no private key. This fails on
+  // any public RPC (use the KeeperHub workflow path there instead).
   const selector = "0x095ea7b3";
   const data = `${selector}${encodeAddressParam(spender)}${encodeUintParam(amount)}`;
   return ctx.rpc<string>("eth_sendTransaction", [

@@ -103,15 +103,51 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   // Daemon modes bypass the command registry — they are long-running processes.
-  if (args[0] === "autopilot" && ["daemon", "start", "dry-run", "once"].includes(args[1] ?? "")) {
+  // Usage: lax autopilot daemon [--dry-run] [--once] [--only <name>]
+  //        [--interval <sec>] [--cooldown <sec>] [--help]
+  if (args[0] === "autopilot" && ["daemon", "start", "dry-run", "once", "--help", "-h", "help"].includes(args[1] ?? "")) {
+    if (args.includes("--help") || args.includes("-h") || args[1] === "help") {
+      console.log(renderBanner());
+      console.log("");
+      console.log("Usage: lax autopilot daemon [--dry-run] [--once] [--only <name>] [--interval <sec>] [--cooldown <sec>]");
+      console.log("");
+      console.log("  daemon            continuous monitor loop (alias: start)");
+      console.log("  dry-run           full pipeline, never fires the webhook");
+      console.log("  once              exit after one poll pass (CI / demo script)");
+      console.log("  --only <name>     monitor only the named position from lax.config.json");
+      console.log("  --interval <sec>  poll interval in seconds (default 2)");
+      console.log("  --cooldown <sec>  minimum seconds between fires per position (default 300)");
+      console.log("  --dry-run         same as the dry-run mode flag");
+      console.log("");
+      console.log("The daemon only auto-fires when the guardian is armed (lax arm).");
+      console.log("Demo caps: LAX_BLOCK_THRESHOLD_USD=50 LAX_DAILY_LIMIT_USD=100");
+      return;
+    }
+    const intervalRaw = args.includes("--interval") ? args[args.indexOf("--interval") + 1] : undefined;
+    const cooldownRaw = args.includes("--cooldown") ? args[args.indexOf("--cooldown") + 1] : undefined;
+    const onlyRaw = args.includes("--only") ? args[args.indexOf("--only") + 1] : undefined;
+    const intervalSec = intervalRaw !== undefined ? Number(intervalRaw) : NaN;
+    const cooldownSec = cooldownRaw !== undefined ? Number(cooldownRaw) : NaN;
+    if (intervalRaw !== undefined && (!Number.isFinite(intervalSec) || intervalSec <= 0)) {
+      console.error(style.red(`lax autopilot: --interval must be a positive number of seconds (got "${intervalRaw}")`));
+      exit(1);
+    }
+    if (cooldownRaw !== undefined && (!Number.isFinite(cooldownSec) || cooldownSec < 0)) {
+      console.error(style.red(`lax autopilot: --cooldown must be a non-negative number of seconds (got "${cooldownRaw}")`));
+      exit(1);
+    }
+    if (args.includes("--only") && (!onlyRaw || onlyRaw.startsWith("--"))) {
+      console.error(style.red(`lax autopilot: --only requires a position name from lax.config.json`));
+      exit(1);
+    }
     const { runAutopilot } = await import("../src/autopilot/daemon");
     console.log(renderBanner());
     await runAutopilot({
       dryRun: args[1] === "dry-run" || args.includes("--dry-run"),
-      once: args[1] === "once",
-      only: args.includes("--only") ? args[args.indexOf("--only") + 1] : undefined,
-      intervalMs: args.includes("--interval") ? parseInt(args[args.indexOf("--interval") + 1] ?? "2000") * 1000 : undefined,
-      cooldownMs: args.includes("--cooldown") ? parseInt(args[args.indexOf("--cooldown") + 1] ?? "300") * 1000 : undefined,
+      once: args[1] === "once" || args.includes("--once"),
+      only: onlyRaw,
+      intervalMs: intervalRaw !== undefined ? intervalSec * 1000 : undefined,
+      cooldownMs: cooldownRaw !== undefined ? cooldownSec * 1000 : undefined,
     });
     return;
   }

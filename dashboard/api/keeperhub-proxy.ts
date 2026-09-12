@@ -1,9 +1,14 @@
 /**
  * KeeperHub webhook proxy — free edge function (Vercel/Netlify/Cloudflare)
- * Holds VITE_KEEPERHUB_API_KEY server-side so the static bundle never ships it.
+ * Holds KEEPERHUB_API_KEY server-side so the static bundle never ships it.
  * Forwards POST /api/keeperhub-proxy/workflows/:id/webhook to KeeperHub.
  * Deploy on Vercel: put this file in `api/` at project root or `dashboard/api/`.
- * Env var: KEEPERHUB_API_KEY (set in Vercel/Netlify dashboard, free tier)
+ * Env vars: KEEPERHUB_API_KEY (required), LAX_WEBHOOK_SECRET (optional HMAC).
+ *
+ * NOTE: this dashboard copy is stale — it lacks the HMAC verification in the
+ * canonical `api/keeperhub-proxy.ts` (V2 plan fix #11: `x-lax-timestamp` +
+ * `x-lax-signature: sha256=<hex>`, 5-minute replay window). Deploy the root
+ * copy; this file is kept only so the dashboard typechecks standalone.
  */
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") {
