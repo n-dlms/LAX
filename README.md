@@ -181,6 +181,7 @@ Wired into [`opencode.jsonc`](opencode.jsonc) as the `lax-guardian` agent.
 |-----|------------|
 | [`docs/SETUP.md`](docs/SETUP.md) | Full setup from clone to running demo |
 | [`docs/CLI-GUIDE.md`](docs/CLI-GUIDE.md) | Complete CLI user manual — every command, flag, and mode |
+| [`docs/CLI-REFERENCE.md`](docs/CLI-REFERENCE.md) | Deep per-command reference — every command explained with purpose and examples |
 | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | New to DeFi lending? Every term (HF, WETH, liquidation, MEV) explained with worked numbers |
 | [`docs/architecture.md`](docs/architecture.md) | System architecture: daemon, gate, webhook path, dashboard |
 | [`docs/VERIFIED-TESTING.md`](docs/VERIFIED-TESTING.md) | Evidence log: what was really tested and what worked |

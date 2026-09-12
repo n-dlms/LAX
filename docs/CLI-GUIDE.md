@@ -4,6 +4,10 @@ Everything you need to run the Liquidation CLI confidently — from your first
 command to scripting the autopilot in production. No prior DeFi experience
 assumed; every term is explained the first time it appears.
 
+Companion documents: [`GLOSSARY.md`](GLOSSARY.md) (concepts from zero) and
+[`CLI-REFERENCE.md`](CLI-REFERENCE.md) (deep per-command reference — all 77
+commands with purpose, examples, and gotchas).
+
 ---
 
 ## Table of Contents
