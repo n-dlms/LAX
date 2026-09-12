@@ -388,7 +388,7 @@ Every trigger prints the four gate stages as they're decided:
 · [lax-fork] ✔ preflight: approve+repay simulated ok (233ms)
 · [lax-fork] ✔ spend-caps: Repays $32.40 within block/daily caps
 ⚡ [lax-fork] fired → execution 9bc31ofdfca1m62b2v29t
-     audit trail: https://app.keeperhub.com/runs/9bc31ofdfca1m62b2v29t
+     audit trail: https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b · execution 9bc31ofdfca1m62b2v29t
 ```
 
 ### Flags
@@ -457,7 +457,7 @@ Mitigation log — /home/you/.lax/mitigations.jsonl
 ────────────────────────────────────────────────────────────────────────
   09:40:22  ⛔ BLOCKED     HF 1.0265  repay 32.40 USDC  stages [hf-math:ok,preflight:FAIL,spend-caps:ok]
   10:02:13  ⚡ FIRED       HF 1.0431  repay 32.32 USDC  exec 9bc31ofdfca1m6…
-                          https://app.keeperhub.com/runs/9bc31ofdfca1m62b2v29t
+                          https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b · execution 9bc31ofdfca1m62b2v29t
 ```
 
 Each row is one decision: triggers (▲), gate blocks (⛔), fires (⚡),

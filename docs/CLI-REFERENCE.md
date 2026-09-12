@@ -420,7 +420,7 @@ Two execution routes exist:
   it fails on any public RPC.
 - **default (no flag)** — routes through your **KeeperHub workflow**: the
   agentic wallet signs, execution is MEV-protected, and a full audit trail
-  appears at `app.keeperhub.com/runs/<id>`. This is the production path.
+  is listed on the workflow's runs page at `app.keeperhub.com/workflows/<workflow-id>` (the platform has no per-execution UI route — the execution ID is the searchable identifier). This is the production path.
 
 ---
 
@@ -502,7 +502,7 @@ Mitigation log — /home/you/.lax/mitigations.jsonl
 ────────────────────────────────────────────────────────────────────────
   09:40:22  ⛔ BLOCKED   HF 1.0265  repay 32.40 USDC  stages [hf-math:ok,preflight:FAIL,spend-caps:ok]
   10:02:13  ⚡ FIRED     HF 1.0431  repay 32.32 USDC  exec 9bc31ofdfca1m6…
-                          https://app.keeperhub.com/runs/9bc31ofdfca1m62b2v29t
+                          https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b · execution 9bc31ofdfca1m62b2v29t
 ```
 
 Row icons: ▲ trigger · ⛔ gate-blocked · ⚡ fired · ✖ failed · ◌ dry-run ·

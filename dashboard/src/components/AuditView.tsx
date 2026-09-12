@@ -6,6 +6,12 @@ function firstTxHash(steps: MitigationStep[]): string | null {
   return steps.find((step) => step.txHash)?.txHash ?? null;
 }
 
+/** Local-fork txs exist only on the local chain — no public explorer has them. */
+function isForkRpc(rpcUrl?: string): boolean {
+  const url = rpcUrl ?? "http://127.0.0.1:18545";
+  return /localhost|127\.0\.0\.1/.test(url);
+}
+
 // ---- Step Row ----
 function StepRow({ step }: { step: MitigationStep }) {
   return (
@@ -188,28 +194,42 @@ export default function AuditView({ event, onReset }: AuditViewProps) {
         <div className="text-sm text-secondary mb-3">Submission Proof</div>
         <div className="grid md:grid-cols-2 gap-3">
           <a
-            href={LAX_CONFIG.KEEPERHUB_RUN_URL(event.executionId)}
+            href={LAX_CONFIG.KEEPERHUB_WORKFLOW_URL(LAX_CONFIG.WORKFLOW_ID)}
             target="_blank"
             rel="noopener noreferrer"
+            title="Opens the workflow's runs page on KeeperHub — the execution ID below is listed there"
             className="border border-bordercol p-3 hover:border-cyan transition-colors"
           >
             <div className="text-[10px] text-secondary uppercase">KeeperHub Audit Trail</div>
             <div className="text-xs text-cyan mt-1 font-mono break-all">
               {event.executionId || "pending"}
             </div>
+            <div className="text-[10px] text-secondary mt-1">view on the workflow's runs page ↗</div>
           </a>
           {txHash ? (
-            <a
-              href={LAX_CONFIG.TX_EXPLORER_URL(txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="border border-bordercol p-3 hover:border-cyan transition-colors"
-            >
-              <div className="text-[10px] text-secondary uppercase">On-chain Transaction</div>
-              <div className="text-xs text-cyan mt-1 font-mono break-all">
-                {txHash}
+            isForkRpc(event.rpcUrl) ? (
+              // Local-fork txs only exist on the local chain — no explorer has
+              // them, so rendering a basescan link would just 404 the user
+              <div className="border border-bordercol p-3">
+                <div className="text-[10px] text-secondary uppercase">On-chain Transaction (local fork)</div>
+                <div className="text-xs text-cyan mt-1 font-mono break-all">{txHash}</div>
+                <div className="text-[10px] text-secondary mt-1">
+                  fork-local — verify with <span className="font-mono">lax tx {txHash.slice(0, 10)}…</span>
+                </div>
               </div>
-            </a>
+            ) : (
+              <a
+                href={LAX_CONFIG.TX_EXPLORER_URL(txHash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="border border-bordercol p-3 hover:border-cyan transition-colors"
+              >
+                <div className="text-[10px] text-secondary uppercase">On-chain Transaction</div>
+                <div className="text-xs text-cyan mt-1 font-mono break-all">
+                  {txHash}
+                </div>
+              </a>
+            )
           ) : (
             <div className="border border-bordercol p-3">
               <div className="text-[10px] text-secondary uppercase">On-chain Transaction</div>

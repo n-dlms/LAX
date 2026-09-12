@@ -17,7 +17,8 @@ MEV bots can act. KeeperHub is the execution layer: the daemon computes the
 amount at fire time, passes it in the HMAC-signed webhook payload, and the
 `lax-liquidation-armor(-sepolia)` workflow executes read HF → approve USDC →
 repay → verify HF with the Turnkey agentic wallet. Every fire prints
-`app.keeperhub.com/runs/<id>`.
+the execution ID, listed on the workflow's runs page
+(`app.keeperhub.com/workflows/<workflow-id>` — the platform has no per-execution UI route).
 
 ## Which KeeperHub surfaces did you use?
 
@@ -42,7 +43,7 @@ repay → verify HF with the Turnkey agentic wallet. Every fire prints
 
 - Workflow `lax-liquidation-armor-sepolia` `l4pbmt6jdek9c3lwt0y3b`
 - 2026-09-06 verified fire: execution `9bc31ofdfca1m62b2v29t`,
-  audit `https://app.keeperhub.com/runs/9bc31ofdfca1m62b2v29t`
+  audit trail: execution 9bc31ofdfca1m62b2v29t on `https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b`
 - Approve `https://sepolia.basescan.org/tx/0xd15cc2c844ea4a0dd50e0878d6819dcff116f48e98f7e2489e6d96679fca2e88`
 - Repay `https://sepolia.basescan.org/tx/0x918441fcd4d2071733afc139ed0b5c29cba34ddeefc2ca1583499b10827c8bac`
   (0.3 USDC, mode 2, onBehalfOf; debt 0.7002 → 0.4002, HF 6.067 → 10.615)
@@ -59,7 +60,9 @@ repay → verify HF with the Turnkey agentic wallet. Every fire prints
   for bugs/sanity checks. Our PR #2268 is already merged, so this is covered.
 - **BUIDLs**: separate BUIDL per track — a BUIDL can only go to one track.
   Bounty BUIDL should **link the PR** (not the merge commit).
-- **Tx requirement**: a testnet tx + `app.keeperhub.com/runs` link satisfies it.
+- **Tx requirement**: a testnet tx + the KeeperHub audit trail satisfies it
+  (link the workflow's runs page and name the execution ID — verified 2026-09-12
+  that `app.keeperhub.com/runs/<id>` no longer resolves).
   Judges do **not** re-run workflows — they read the repo, watch the video, then
   open the explorer link and **match the tx against their own execution records**.
   Video + tx hash is enough. Run history persists in the account through judging.

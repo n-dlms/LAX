@@ -230,7 +230,7 @@ async function pollOnce(
     appendMitigation({ kind: "webhook-fired", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), executionId: fire.executionId, stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network, reason: "autopilot-trigger" });
     sendAlertAsync({ event: "webhook-fired", position: position.name, network: position.network, hf, repayHuman: usdcToString(repayUsdc), executionId: fire.executionId });
     log(TOKENS.bolt, style.cyan, `fired → execution ${style.bold(fire.executionId)}`);
-    console.log(`     ${style.gray("audit trail:")} ${style.underline(style.blue(runUrl(fire.executionId)))}`);
+    console.log(`     ${style.gray("audit trail:")} ${style.underline(style.blue(runUrl(fire.executionId, position.workflowId)))}`);
     return { decision: "fired", fired: true };
   } catch (err) {
     appendMitigation({ kind: "fire-failed", hf, repayUsdc: repayUsdc.toString(), repayHuman: usdcToString(repayUsdc), reason: (err as Error).message, stages: compactStages(gate), stagesDetail: gate.stages, position: position.name, network: position.network });

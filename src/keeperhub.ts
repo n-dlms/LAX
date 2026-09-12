@@ -81,6 +81,10 @@ export async function fireWorkflowWebhook(payload: unknown, o?: KeeperHubOptions
   return { ok: resp.ok, executionId, status: resp.status, raw };
 }
 
-export function runUrl(executionId: string): string {
-  return `https://app.keeperhub.com/runs/${executionId}`;
+// The platform has no per-execution UI route (app.keeperhub.com/runs/{id} is
+// gone) — the runs list lives on the workflow page, where the execution ID is
+// visible. Route verified HTTP 200 on 2026-09-12.
+export function runUrl(executionId: string, workflowId?: string): string {
+  if (workflowId) return `https://app.keeperhub.com/workflows/${workflowId}`;
+  return `https://app.keeperhub.com/workflows (execution ${executionId})`;
 }

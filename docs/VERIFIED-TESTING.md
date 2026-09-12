@@ -25,7 +25,8 @@ and completed **5/5 steps, status success**:
 - health factor: `6.067 → 10.615`
 - executed by KeeperHub's signing relayer `0xDcF4bac4…` (the platform's agentic wallet — LAX never touches a private key)
 
-Audit trail: https://app.keeperhub.com/runs/9bc31ofdfca1m62b2v29t
+Audit trail: https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b (the platform has no per-execution UI route;
+execution 9bc31ofdfca1m62b2v29t is listed on that page)
 
 Reproduce: `./scripts/fire-sepolia.sh`
 

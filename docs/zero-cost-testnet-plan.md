@@ -46,7 +46,7 @@ transfer before the real flow.
    (Aave V3 plugin / `web3/write-contract`):
    wrap a sliver of ETH → WETH → `supply(WETH)` → `borrow(1 Aave-USDC)`.
 6. **The submission tx**: `approve(POOL, USDC)` → `repay(USDC, amount, 2, onBehalfOf)`
-   through the KeeperHub workflow. Proof = explorer link + `app.keeperhub.com/runs/<id>`.
+   through the KeeperHub workflow. Proof = explorer link + the execution ID on the workflow's runs page (`app.keeperhub.com/workflows/<workflow-id>`).
    Remember docs/FEEDBACK.md C1 (`tokenConfig` must be `JSON.stringify`'d) and C2 (`onBehalfOf`
    is required).
 

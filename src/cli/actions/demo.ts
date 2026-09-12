@@ -277,7 +277,7 @@ export async function handleDemo(ctx: CommandContext, args: ParsedArgs): Promise
         if (!fire.ok) throw new Error(`KeeperHub ${fire.status}: ${fire.raw.slice(0, 160)}`);
         executionId = fire.executionId;
         say(TOKENS.bolt, `KeeperHub webhook fired → execution ${style.bold(fire.executionId)} (audit trail)`);
-        console.log(`   ${style.gray("audit trail:")} ${style.underline(style.blue(runUrl(fire.executionId)))}`);
+        console.log(`   ${style.gray("audit trail:")} ${style.underline(style.blue(runUrl(fire.executionId, LAX_CONFIG.WORKFLOW_ID)))}`);
       } catch (err) {
         say(TOKENS.warn, `webhook fire skipped: ${(err as Error).message}`);
       }

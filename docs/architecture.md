@@ -68,7 +68,7 @@ lax/
 │   │   ├── components/
 │   │   │   ├── HFMonitor.tsx           # Beat 3 — live HF ticker
 │   │   │   ├── MitigationLog.tsx       # Beat 4-7 — step-by-step approve/repay status
-│   │   │   ├── AuditLink.tsx           # Beat 8 — clickable app.keeperhub.com/runs/<id>
+│   │   │   ├── AuditLink.tsx           # Beat 8 — clickable link to the workflow runs page
 │   │   │   ├── OnboardingProgress.tsx  # Beats 1-2 — CLI setup progress
 │   │   │   └── TenderlyBackupLink.tsx  # Secondary "see original simulation" link (ADR-007)
 │   │   ├── hooks/
@@ -384,7 +384,7 @@ Each step shows: contract, amount, tx hash, gas cost. If a step failed and auto-
 │  Verification                                                │
 │  ──────────────────────────────────────────────────────────── │
 │                                                              │
-│  🔗 Execution Link: app.keeperhub.com/runs/exec_8f93a2...   │
+│  🔗 Execution Link: workflow runs page + exec id       │
 │  🔗 Tenderly Sim:   tenderly.co/<user>/fork/sim/<id>        │
 │                                                              │
 │  │ Step 1: approve    │ health_check  │ ✅ 0 retries        │
@@ -497,7 +497,7 @@ The footer persists across all 3 screens. Screen 3 is shown after the `RESOLVED`
            └─ Dashboard shows Beat 7: "RESOLVED — HF restored to 1.10"
 
 [10:01:45] Dashboard footer: Beat 8
-           ├─ "🔗 app.keeperhub.com/runs/exec_8f93a2bc0d41e77f"
+           ├─ "🔗 app.keeperhub.com/workflows/<workflow-id> · execution <id>"
            ├─ "🔗 tenderly.co/<user>/fork/sim/<id>"
            ├─ "Total time: 14.0s (trigger to resolve: ~14s inc. operator pauses)"
            └─ Demo operator clicks the link → KeeperHub audit trail page

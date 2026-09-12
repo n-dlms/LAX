@@ -24,8 +24,13 @@ export const LAX_CONFIG = {
   WALLET_ADDRESS: CONFIG.WALLET_ADDRESS,
   ANVIL_SIGNER: CONFIG.BORROWER_ADDRESS,
   KEEPERHUB_API: keeperhubApi,
+  // The platform has no per-execution UI route (app.keeperhub.com/runs/{id} is
+  // gone) — the runs list lives on the workflow page, where the execution ID
+  // is visible. Route verified HTTP 200 on 2026-09-12.
+  KEEPERHUB_WORKFLOW_URL: (workflowId: string) =>
+    `https://app.keeperhub.com/workflows/${workflowId}`,
   KEEPERHUB_RUN_URL: (executionId: string) =>
-    `https://app.keeperhub.com/runs/${executionId}`,
+    `https://app.keeperhub.com/workflows/${CONFIG.WORKFLOW_ID} (execution ${executionId})`,
   TX_EXPLORER_URL: (txHash: string) => `https://basescan.org/tx/${txHash}`,
 } as const;
 

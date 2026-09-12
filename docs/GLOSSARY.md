@@ -167,7 +167,7 @@ A blocked fire is a *success* of this system. You can replay any decision with
 The automation platform LAX runs on. LAX computes *when* and *how much*;
 KeeperHub executes deterministically — read HF → approve → repay → verify —
 through the workflow, with a full **audit trail** at
-`app.keeperhub.com/runs/<id>` you can open and inspect.
+the workflow's runs page (`app.keeperhub.com/workflows/<workflow-id>`, where each execution ID is listed) you can open and inspect.
 
 ### Webhook
 How LAX tells KeeperHub "execute now": an authenticated HTTP POST carrying the

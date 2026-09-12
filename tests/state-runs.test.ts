@@ -103,7 +103,7 @@ describe("lax runs (persisted)", () => {
     expect(res.output).toContain("BLOCKED");
     expect(res.output).toContain("FIRED");
     expect(res.output).toContain("HF 1.0431");
-    expect(res.output).toContain("app.keeperhub.com/runs/9bc31ofdfca1m62b2v29t");
+    expect(res.output).toContain("app.keeperhub.com/workflows/7gdt0ty7zk1orq1j4wc74 (execution 9bc31ofdfca1m62b2v29t)");
     expect(res.output).toContain("stages [hf-math:ok,preflight:FAIL,spend-caps:ok]");
   });
 

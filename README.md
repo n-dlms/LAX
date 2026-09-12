@@ -35,7 +35,7 @@ flowchart LR
     C -->|"any check fails"| D["⛔ nothing fires —<br/>blocked = success"]
     C -->|"all pass"| E["✍️ HMAC-signed webhook<br/>exact repay amount<br/>computed at fire time"]
     E --> F["⚙️ KeeperHub workflow<br/>read HF → approve → repay → verify<br/>Turnkey agentic wallet"]
-    F --> G["🧾 Audit trail<br/>app.keeperhub.com/runs/⟨id⟩<br/>+ on-chain txs"]
+    F --> G["🧾 Audit trail<br/>workflow runs page + execution id<br/>+ on-chain txs"]
     G -->|"HF restored to 1.10"| B
 ```
 
@@ -108,7 +108,7 @@ Verified run (2026-09-06):
 
 | Artifact | Link |
 |---|---|
-| Audit trail | https://app.keeperhub.com/runs/9bc31ofdfca1m62b2v29t |
+| Audit trail (execution 9bc31ofdfca1m62b2v29t on the workflow runs page) | https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b |
 | Repay tx (debt 0.7002 → 0.4002 USDC) | https://sepolia.basescan.org/tx/0x918441fcd4d2071733afc139ed0b5c29cba34ddeefc2ca1583499b10827c8bac |
 | Approve tx | https://sepolia.basescan.org/tx/0xd15cc2c844ea4a0dd50e0878d6819dcff116f48e98f7e2489e6d96679fca2e88 |
 
@@ -204,7 +204,7 @@ npm run lint      # tsc --noEmit — clean (root + dashboard)
 | Criterion | How LAX hits it |
 |-----------|-----------------|
 | Integration depth | Aave V3 is the named live project — integration targets the actual Pool contract (`repay()`, `getUserAccountData`), not a generic wrapper |
-| Execution through KeeperHub | Real value movement: USDC approve → Aave debt repayment through the KeeperHub workflow, verifiable via tx hash + `app.keeperhub.com/runs/<id>` |
+| Execution through KeeperHub | Real value movement: USDC approve → Aave debt repayment through the KeeperHub workflow, verifiable via tx hash + the execution ID on the workflow's runs page |
 | Reliability and observability | 502-test suite, preflight dry-run simulation, safety plugin (block/daily caps, selector allowlist), KeeperHub execution polling, offline position cache |
 | Usefulness and originality | Proactive-not-reactive liquidation defense at HF=1.05 — retail Aave users have no autonomous defender above the MEV-bot threshold |
 | Developer experience and code quality | `npm run setup` one-command bootstrap, `bootstrap/` starter template, zero `any` types, every address in one `src/config.ts`, candid limitations documented |
