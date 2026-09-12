@@ -108,22 +108,24 @@ else
   echo "Updated workflow $WORKFLOW_ID"
 fi
 
-# Sponsorship tag for the current hackathon (KeeperHub — The Agent Economy).
-# Override with: LAX_SPONSORSHIP_TAG=<tag> ./scripts/deploy-workflow.sh
-# The real event tag must be confirmed in the KeeperHub Discord / office hours;
-# until then the placeholder below is attached (workflow still deploys, gas is wallet-paid).
-SPONSORSHIP_TAG="${LAX_SPONSORSHIP_TAG:-TBD_AGENT_ECONOMY_2026}"
+# Gas sponsorship is org-level credits (Settings → Billing), testnet uncharged —
+# confirmed in Discord Sep 10, no event tag. Only attach a tag if explicitly
+# provided: LAX_SPONSORSHIP_TAG=<tag> ./scripts/deploy-workflow.sh
+if [ -n "${LAX_SPONSORSHIP_TAG:-}" ]; then
+  SPONSORSHIP_TAG="${LAX_SPONSORSHIP_TAG}"
+  echo "=== Attaching $SPONSORSHIP_TAG tag ==="
+  TAG_JSON=$(kh tag create "$SPONSORSHIP_TAG" --json 2>/dev/null || kh tag get "$SPONSORSHIP_TAG" --json 2>&1)
+  TAG_ID=$(echo "$TAG_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['id'] if isinstance(d, dict) else d[0]['id'])")
 
-echo "=== Attaching $SPONSORSHIP_TAG tag ==="
-TAG_JSON=$(kh tag create "$SPONSORSHIP_TAG" --json 2>/dev/null || kh tag get "$SPONSORSHIP_TAG" --json 2>&1)
-TAG_ID=$(echo "$TAG_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['id'] if isinstance(d, dict) else d[0]['id'])")
+  curl -sf -X PATCH "https://app.keeperhub.com/api/workflows/$WORKFLOW_ID" \
+    -H "Authorization: Bearer $KEEPERHUB_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"tagId\":\"$TAG_ID\"}" > /dev/null 2>&1 || echo "Tag attach skipped"
 
-curl -sf -X PATCH "https://app.keeperhub.com/api/workflows/$WORKFLOW_ID" \
-  -H "Authorization: Bearer $KEEPERHUB_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{\"tagId\":\"$TAG_ID\"}" > /dev/null 2>&1 || echo "Tag attach skipped"
-
-echo "Tag: $SPONSORSHIP_TAG ($TAG_ID)"
+  echo "Tag: $SPONSORSHIP_TAG ($TAG_ID)"
+else
+  echo '=== Tag: skipped (sponsorship is org-level now; testnet uncharged) ==='
+fi
 
 echo '=== Done ==='
 echo "export LAX_WORKFLOW_ID=$WORKFLOW_ID"

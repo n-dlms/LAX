@@ -1,6 +1,9 @@
 export const CONFIG = {
   WALLET_ADDRESS: '0x8Bb7870242e75132Fd62265cA8ABF771d49C821C' as const,
   WALLET_SUBORG_ID: '514bb660-86a5-47e8-9f35-52d632c12803' as const,
+  // Starter-template snapshot of the root src/config.ts (Base fork demo only).
+  // The root config additionally carries the Base Sepolia (84532) live-testnet
+  // path + browser-safe borrower resolution — see src/config.ts.
   BORROWER_ADDRESS: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as const,
 
   HF: {
@@ -25,11 +28,10 @@ export const CONFIG = {
 
   REPAY_MODE: 2,
 
-  // Gas sponsorship tag for the current hackathon: KeeperHub — The Agent Economy
-  // (DoraHacks, build phase Sep 6–18, 2026). The event's sponsorship tag has not been
-  // published yet — confirm it in the KeeperHub Discord / office hours before relying
-  // on sponsored gas. The wallet-pays-gas fallback (ADR-006) covers the demo either way.
-  SPONSORSHIP_TAG: 'TBD_AGENT_ECONOMY_2026',
+  // Gas sponsorship: org-level credits (Settings → Billing), testnet uncharged
+  // (confirmed in Discord Sep 10 — no event tag). Wallet-pays-gas fallback covers
+  // the fork demo either way.
+  SPONSORSHIP_TAG: '',
 
   SAFETY: {
     // ASSUMPTION: value in wei is treated as USD at 1:1 rate (no price oracle in safety plugin)

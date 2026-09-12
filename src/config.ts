@@ -36,11 +36,13 @@ export const CONFIG = {
 
   REPAY_MODE: 2,
 
-  // Gas sponsorship tag for the current hackathon: KeeperHub — The Agent Economy
-  // (DoraHacks, build phase Sep 6–18, 2026). The event's sponsorship tag has not been
-  // published yet — confirm it in the KeeperHub Discord / office hours before relying
-  // on sponsored gas. The wallet-pays-gas fallback (ADR-006) covers the demo either way.
-  SPONSORSHIP_TAG: 'TBD_AGENT_ECONOMY_2026',
+  // Gas sponsorship for the current hackathon: KeeperHub — The Agent Economy
+  // (DoraHacks, build phase Sep 6–18, 2026). Confirmed in Discord (Sep 10):
+  // no event tag — org-level gas credits in Settings → Billing, testnet
+  // uncharged. Direct-wallet sender via public mempool only (no Safe).
+  // The wallet-pays-gas fallback (ADR-006) covers the fork demo either way.
+  // SPONSORSHIP_TAG kept as a no-op for backward-compat with deploy scripts.
+  SPONSORSHIP_TAG: '',
 
   SAFETY: {
     // ASSUMPTION: value in wei is treated as USD at 1:1 rate (no price oracle in safety plugin)
