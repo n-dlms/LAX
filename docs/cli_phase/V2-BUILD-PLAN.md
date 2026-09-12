@@ -91,7 +91,7 @@ Rubric keys: **ID** integration depth · **EX** execution through KeeperHub · *
 
 ## 5. Risks
 
-- **Sponsorship tag `TBD_AGENT_ECONOMY_2026`** still unconfirmed — and PR #2268 research suggests tags may be retired entirely in favor of org gas credits. Confirm at office hours (3 sessions, 12:00 CEST, announced in Discord) before the Sepolia tx.
+- **Sponsorship** — resolved Sep 10 (Discord): no event tag, org-level credits, testnet uncharged.
 - **Static workflow repay amount** — mitigated by fix #2; note it honestly in the "what still breaks" form answer either way.
 - **Extracting the CLI may churn the dashboard** — keep the shim re-exports; run `npm run dev` in `dashboard/` as a smoke test per phase.
 - **Fork demo flakiness** — `fork-state.json` already snapshots the seeded position; re-dump after any fork-setup change.

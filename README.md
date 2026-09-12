@@ -11,10 +11,9 @@
 | **Stack** | OpenCode + NVIDIA NIM + KeeperHub MCP + Aave V3 Plugin |
 | **Phase** | V2 — standalone Liquidation CLI + autopilot daemon (build log: `docs/cli_phase/V2-BUILD-PLAN.md`) |
 
-> **Gas sponsorship note:** the `AgentsOnchain2026` tag from the previous event is retired.
-> The new event's sponsorship tag is not yet published — confirm it in the KeeperHub
-> Discord / office hours and set it via `LAX_SPONSORSHIP_TAG=<tag> ./scripts/deploy-workflow.sh`
-> (placeholder `TBD_AGENT_ECONOMY_2026` is wired in `src/config.ts` until then).
+> **Gas sponsorship note:** no event tag for The Agent Economy (confirmed in Discord Sep 10).
+> Org-level gas credits in Settings → Billing, testnet uncharged. Direct-wallet sender
+> via public mempool only (no Safe). Fork demo is wallet-pays-gas (free local ETH).
 
 ## What It Does
 
@@ -124,7 +123,7 @@ mergeable-scoped, tested workarounds today:
 Everything claimed in this README was executed and verified — see
 [`docs/VERIFIED-TESTING.md`](docs/VERIFIED-TESTING.md) for the full log: the live-fire
 evidence (on-chain before/after), the gate's real blocking outcomes, the CLI command
-battery, daemon modes, the 464-test suite, and the nine real bugs the verification
+battery, daemon modes, the 465-test suite (2 fork-live skipped without a fork), and the nine real bugs the verification
 found and fixed.
 
 ## Judging Criteria Trace (The Agent Economy — main track rubric)
@@ -133,7 +132,7 @@ found and fixed.
 |-----------|-----------------|
 | Integration depth | Aave V3 is the named live project — integration targets the actual Pool contract (`repay()`, `getUserAccountData`), not a generic wrapper |
 | Execution through KeeperHub | Real value movement: USDC approve → Aave debt repayment executed through the KeeperHub workflow, verifiable via tx hash + `app.keeperhub.com/runs/<id>` |
-| Reliability and observability | 508-test suite, preflight dry-run simulation, safety plugin (block/daily caps, selector allowlist), step-level retry history, adaptive audit-trail polling, offline fork-state cache |
+| Reliability and observability | 465-test suite (14 files, 2 fork-live skip without a fork), preflight dry-run simulation, safety plugin (block/daily caps, selector allowlist), KeeperHub execution polling, offline position cache |
 | Usefulness and originality | Proactive-not-reactive liquidation defense at HF=1.05 — retail Aave users have no autonomous defender above the MEV-bot threshold |
 | Developer experience and code quality | `scripts/setup.sh` one-command bootstrap, `bootstrap/` starter template, zero `any` types, every address in one `src/config.ts`, candid limitations documented |
 
@@ -145,7 +144,7 @@ Phase 0 decisions documented in `docs/adr/`:
 - ADR-003: Agentic wallet (first-party `@keeperhub/wallet`, Turnkey custody)
 - ADR-004: Chain strategy (Sepolia build, Anvil fork demo, Tenderly backup recording)
 - ADR-005: Aave V3 onchain path (proactive defense at HF=1.05, two-step approve → repay, closed-form math)
-- ADR-006: Gas sponsorship (event tag primary — **tag TBD for The Agent Economy**, wallet-pays-gas fork fallback)
+- ADR-006: Gas sponsorship (org-level credits, testnet uncharged — no event tag per Discord Sep 10; wallet-pays-gas fork fallback)
 - ADR-007: Demo environment (Anvil fork live + Tenderly recording backup link)
 - ADR-008: Dashboard template — fork `thtauhid/terminal-portfolio`
 - ADR-009: Tailwind v3 → v4 migration (CSS `@theme` replaces `tw-colors`)
@@ -161,4 +160,4 @@ Phase 0 decisions documented in `docs/adr/`:
 | Originality & usefulness | Proactive-not-reactive liquidation defense — retail Aave users currently have no autonomous defender below the MEV-bot threshold; existing solutions (DeFiSave, Gelato) target reactive keepers |
 | Integration quality & DX | 60-second setup from `git clone` → wallet installed → MCP connected → first mitigation, Onboarding DX bounty play, every KeeperHub surface used correctly |
 
-*(Pre-event rubric from Agents Onchain 2026 — kept for history. The Agent Economy rubric trace is at the top of this file.)*
+*(Pre-event rubric from Agents Onchain 2026 — kept for history. The Agent Economy rubric trace is at the top of this file. Note: this older trace names `get_execution_logs` polling and `GAS_SPONSORSHIP_*` auto-retry — the current V2 path polls KeeperHub execution status via the dashboard `useExecutionPoller` + `kh run status` in `fire-sepolia.sh`, and gas sponsorship is org-level credits (tags retired); see `docs/zero-cost-testnet-plan.md`.)*

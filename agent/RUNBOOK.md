@@ -38,7 +38,9 @@ approve + repay transactions and the audit trail. The verified run is logged in
 ## Failure modes
 
 - **Anvil not up** → daemon logs `position read failed` each poll; rerun `./scripts/start-fork.sh`.
-- **Gate blocked (spend-caps)** → raise caps for the demo: `LAX_BLOCK_THRESHOLD_USD=50 LAX_DAILY_LIMIT_USD=100`.
+- **Gate blocked (spend-caps)** → the fork demo repays ~$32, but default caps are
+  $10 block / $5 daily (wallet-ops posture). Run the demo sized up:
+  `LAX_BLOCK_THRESHOLD_USD=50 LAX_DAILY_LIMIT_USD=100 npm run lax -- autopilot daemon`.
   The daily spend persists across restarts (by design); reset it with `rm ~/.lax/safety.json`.
 - **Wallet not funded** → preflight fails with an ERC-20 allowance revert; run `./scripts/fund-demo-wallet.sh`.
 - **KeeperHub API key missing** → live mode fails at fire; use `--dry-run` or export the key.

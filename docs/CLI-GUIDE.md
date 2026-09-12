@@ -105,9 +105,10 @@ Nothing moves funds without passing every layer below, in order:
 A blocked fire is a *successful* safety outcome: the gate prints each stage's
 verdict and nothing touches the chain.
 
-Default caps are deliberately small (they protect a demo wallet). Size them to
-your positions with `LAX_BLOCK_THRESHOLD_USD` and `LAX_DAILY_LIMIT_USD`
-environment variables.
+Default caps are deliberately small (they protect a demo wallet: $10 block / $5 daily).
+The fork demo repays ~$32, so size them to your positions with `LAX_BLOCK_THRESHOLD_USD`
+and `LAX_DAILY_LIMIT_USD` environment variables — e.g. `LAX_BLOCK_THRESHOLD_USD=50
+LAX_DAILY_LIMIT_USD=100` for the seeded fork demo.
 
 ---
 
@@ -223,8 +224,9 @@ stop.
 
 ### Onchain Actions
 
-Real transactions. `--local` executes directly against the RPC with the
-fork's funded account (deterministic, no KeeperHub); without it, the action is
+Real transactions. `--local` executes directly against the **local Anvil fork only**
+(the borrower is Anvil dev account #0, unlocked by default — `eth_sendTransaction`
+needs no key there; it fails on any public RPC). Without the flag, the action is
 routed through your KeeperHub workflow. All require `--confirm`.
 
 #### `lax repay <amount> [--local]` (alias `paydown`)

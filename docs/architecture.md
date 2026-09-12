@@ -423,7 +423,7 @@ The footer persists across all 3 screens. Screen 3 is shown after the `RESOLVED`
 | Chainlink WETH/USD Aggregator (Base) | `WETH_USD_AGGREGATOR = "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"` | Base mainnet address for the Aggregator. |
 | Pinned fork block number | `FORK_BLOCK = TBD` | Selected in Phase 3 week 2 per ADR-007 criteria. Hardcoded so the fork boots identically every time. |
 | Wallet `safety.json` limits | `BLOCK_THRESHOLD_USD = 1.00`, `DAILY_LIMIT_USD = 5.00` | Per ADR-003. Hardcoded in the `safety.json` template at `scripts/safety.json.demo`. |
-| Gas sponsorship tag | `SPONSORSHIP_TAG` — placeholder `TBD_AGENT_ECONOMY_2026` until the KeeperHub — The Agent Economy tag is confirmed (override via `LAX_SPONSORSHIP_TAG` env var at deploy) |
+| Gas sponsorship | Org-level credits (no event tag — Discord Sep 10), testnet uncharged; direct-wallet sender via public mempool |
 
 **Everything else is real**: MCP calls reach the actual KeeperHub server. Wallet signing goes through Turnkey custody. The Anvil fork holds real Base mainnet state (pinned at the fork block). The `get_execution_logs` response is the actual KeeperHub audit trail.
 

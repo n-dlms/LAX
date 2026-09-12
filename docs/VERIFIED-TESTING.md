@@ -91,8 +91,9 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 ## 5. Test suite & static checks
 
 - `npx tsc --noEmit` — clean (root + dashboard).
-- `npx vitest run` — **14 files, 464/464 passing** (2 fork-live helper tests skip when no
-  fork is running and pass when it is — verified both states).
+- `npx vitest run` — **14 files, 465 passing, 2 fork-live skipped without a fork**
+  (2 fork-live helper tests skip when no fork is running and pass when it is —
+  verified both states; run date 2026-09-10: 465 passed | 2 skipped, 467 total).
 - Covers: repay math (closed-form HF targeting), critique gate stages, preflight simulator
   contract + live helper subprocess tests, safety plugin (caps, persistence), multi-position
   config parsing, wallet resolution, listener, e2e integration, config validation.
