@@ -14,6 +14,7 @@ PROVIDER_OWNER=0x9390B1735def18560c509E2d0bc090E9d6BA257a
 
 WALLET=0x8Bb7870242e75132Fd62265cA8ABF771d49C821C
 BORROWER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+# Anvil dev account #0 — public, fork-only, holds no real funds. Never use on a live network.
 PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
 echo "=== LAX Fork Setup ==="

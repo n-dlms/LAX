@@ -6,6 +6,7 @@ export PATH="$HOME/.foundry/bin:$PATH"
 PCT_CHANGE="${1:--50}"
 PORT="${PORT:-18545}"
 RPC="http://127.0.0.1:$PORT"
+# Anvil dev account #0 — public, fork-only, holds no real funds. Never use on a live network.
 PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
 POOL=0xA238Dd80C259a72e81d7e4664a9801593F98d1c5
