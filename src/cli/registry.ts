@@ -84,8 +84,8 @@ add(def("position", "lax position", "Full position breakdown (collateral, debt, 
 add(def("debt", "lax debt [token]", "Debt details (amount, USD value)", "monitor", "rpc-read", {
   examples: ["lax debt", "lax debt USDC"],
 }));
-add(def("whatif", "lax whatif [--shock PCT] [--lt LT]", "What-if: collateral drops PCT% — shocked HF and defense cost", "monitor", "rpc-read", {
-  examples: ["lax whatif", "lax whatif --shock 30", "lax whatif --shock 10 --lt 0.85"],
+add(def("whatif", "lax whatif [--shock PCT] [--lt LT] [--json]", "What-if: collateral drops PCT% — shocked HF and defense cost", "monitor", "rpc-read", {
+  examples: ["lax whatif", "lax whatif --shock 30", "lax whatif --shock 10 --lt 0.85", "lax whatif --json"],
 }));
 add(def("demo", "lax demo [--shock PCT] [--yes] [--webhook]", "Self-running demo: shock → gate → execute → verify (dry-run by default; --yes executes on the fork, --webhook also fires KeeperHub)", "monitor", "rpc-read", {
   examples: ["lax demo", "lax demo --shock 15", "lax demo --yes"],

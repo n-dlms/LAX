@@ -69,6 +69,31 @@ export async function handleWhatif(ctx: CommandContext, args: ParsedArgs): Promi
   const usd = (v: bigint) => `$${(Number(v) / 1e6).toFixed(2)}`;
   const proactiveSaving = Number(repayAfterShock - repayNow) / 1e6;
 
+  if (args.flags["json"] !== undefined) {
+    return {
+      output: JSON.stringify(
+        {
+          shockPct,
+          hfNow,
+          hfShocked,
+          collateralUsdNow: collateralNow,
+          collateralUsdShocked: collateralShocked,
+          debtUsd: debtNow,
+          repayUsdToday: Number(repayNow) / 1e6,
+          repayUsdAfterShock: Number(repayAfterShock) / 1e6,
+          proactiveSavingUsd: proactiveSaving,
+          supplyUsdAfterShock: optimal.supplyCost === Infinity ? null : optimal.supplyCost,
+          recommendedAction: optimal.recommendedAction,
+          liquidatableAfterShock: hfShocked <= 1.0,
+          triggerZoneAfterShock: hfShocked <= 1.05,
+          supplyLiquidationThresholdAssumption: lt,
+        },
+        null,
+        2,
+      ),
+    };
+  }
+
   const lines = [
     `What-if: collateral drops ${shockPct.toFixed(0)}% right now`,
     "─".repeat(60),
