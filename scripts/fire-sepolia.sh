@@ -26,7 +26,7 @@ EXEC=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).ge
 [ -n "$EXEC" ] || { echo "FIRE FAILED"; exit 1; }
 echo ""
 echo "Execution: $EXEC"
-echo "Audit:     https://app.keeperhub.com/runs/$EXEC"
+echo "Audit:     https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b (execution $EXEC)"
 
 echo ""
 echo "Waiting for completion..."

@@ -13,6 +13,8 @@ export async function rpc<T>(method: string, params: unknown[]): Promise<T> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }),
+    // A stalled endpoint must never hang the daemon loop
+    signal: AbortSignal.timeout(10_000),
   });
   if (!resp.ok) throw new Error(`RPC ${resp.status} from ${LAX_CONFIG.FORK_RPC}`);
   const json = (await resp.json()) as RpcResponse;

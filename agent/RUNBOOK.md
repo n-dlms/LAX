@@ -23,7 +23,7 @@ Optional fallback (legacy one-shot): `npx tsx scripts/hf-listener.ts`
 | 3 | `./scripts/drop-oracle-price.sh -28` (2nd terminal) | Oracle drops → HF falls toward 1.05 |
 | 4 | Watch daemon log flip | `✔ HF 1.0xxx — above trigger` → `⚡ TRIGGER HF ≤ 1.05 — repay 32.40 USDC` |
 | 5 | Gate stages print | `✔ HF Math Verification` → `✔ Pre-flight Simulation` → `✔ Safety Bounds` → `✔ spend-caps` |
-| 6 | Fire | `🗲 fired → execution <id>` + `audit trail: app.keeperhub.com/runs/<id>` |
+| 6 | Fire | `🗲 fired → execution <id>` + `audit trail: app.keeperhub.com/workflows/<workflow-id> · execution <id>` (the runs page lists every execution) |
 | 7 | `npm run lax -- status` (3rd terminal) | Yellow `LAX TRIGGER ZONE`/border during execution; HF restored toward 1.10 |
 
 Dry-run variant (no API key needed): run beat 2 as

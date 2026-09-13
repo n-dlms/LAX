@@ -95,6 +95,10 @@ the execution ID, listed on the workflow's runs page
    at runtime. Mitigated: the daemon computes the exact amount at fire time and
    sends it in the webhook payload; the workflow amount stays fresh per fire
    only by redeploying the static value. Honest limitation, bounty candidate.
+   **Frame it exactly this way in the BUIDL/video**: fork = the exact-repay
+   defense story (computed, gated, executed); Sepolia = the live-value receipt.
+   Never say "exact repay on testnet" — say "exact repay on the fork, real
+   value movement on Sepolia".
 2. Gas sponsorship is org-level credits (no event tag, confirmed Discord Sep 10);
    testnet uncharged. Fork path is wallet-pays (free).
 3. `--local` CLI onchain actions are fork-only (Anvil unlocked dev account);

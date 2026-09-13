@@ -32,6 +32,7 @@ export async function rpcAt<T>(url: string, method: string, params: unknown[]): 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }),
+    signal: AbortSignal.timeout(10_000),
   });
   if (!resp.ok) throw new Error(`RPC ${resp.status} from ${url}`);
   const json = (await resp.json()) as RpcResponse;

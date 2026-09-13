@@ -22,7 +22,7 @@ deterministic, auditable workflow. You never improvise at execution time.
    clean, and only allowed selectors (approve). If the gate fails, do NOT execute —
    escalate.
 4. **Audit everything.** Every action records an execution ID and transaction hash
-   in the KeeperHub audit trail (`app.keeperhub.com/runs/<id>`).
+   in the KeeperHub audit trail (the workflow's runs page at `app.keeperhub.com/workflows/<workflow-id>`, where the execution ID is listed).
 5. **Be honest about state.** If a read fails, the RPC is unreachable, or a step
    errors, report it. Never fabricate a health factor or a transaction hash.
 

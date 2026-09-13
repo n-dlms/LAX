@@ -92,7 +92,7 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 ## 5. Test suite & static checks
 
 - `npx tsc --noEmit` — clean (root + dashboard).
-- `npx vitest run` — **18 files, 502 passing** (run date 2026-09-12; suite grew
+- `npx vitest run` — **19 files, 506 tests** — 504 pass everywhere, 2 fork-live tests skip without a fork (run date 2026-09-13; suite grew
   from 467 with the V2.1 features: state durability, persisted runs/explain,
   whatif, watch sparkline, operator alerts).
 - Covers: repay math (closed-form HF targeting), critique gate stages, preflight simulator

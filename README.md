@@ -13,7 +13,7 @@ oracle update — no reactive agent can outrun them. LAX doesn't race. It watche
 your health factor continuously and repairs the position **before** the bots
 ever see an opportunity.
 
-[![tests](https://img.shields.io/badge/tests-502%20passing-brightgreen)](docs/VERIFIED-TESTING.md)
+[![tests](https://img.shields.io/badge/tests-506%20passing-brightgreen)](docs/VERIFIED-TESTING.md)
 [![typecheck](https://img.shields.io/badge/tsc-strict%20clean-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-339933)](package.json)
@@ -98,7 +98,12 @@ npm run lax -- autopilot daemon --dry-run   # full pipeline, never fires
 ## Proven on-chain — Base Sepolia
 
 The fork demo is deterministic; the **live path** moves real value on Base Sepolia
-(chain 84532) through a webhook-triggered KeeperHub workflow:
+(chain 84532) through a webhook-triggered KeeperHub workflow. The two paths
+prove different things, and we claim them separately: the **fork executes the
+exact computed repay** (closed-form amount, gate-verified, full defense story);
+**Sepolia is the real live-value receipt** — real testnet USDC moving through
+the platform — where the workflow repays a small static amount because the
+platform rejects dynamic template refs at runtime (see "what still breaks").
 
 ```bash
 ./scripts/fire-sepolia.sh     # one real fire, prints audit trail + tx links
@@ -195,7 +200,7 @@ live-fire evidence, the gate's real blocking outcomes, the CLI command battery,
 daemon modes, and the nine real bugs the verification found and fixed.
 
 ```bash
-npm test          # 502 passed (18 test files, fork-live tests included when a fork runs)
+npm test          # 506 tests (19 files; 2 fork-live tests skip without a fork)
 npm run lint      # tsc --noEmit — clean (root + dashboard)
 ```
 
@@ -205,7 +210,7 @@ npm run lint      # tsc --noEmit — clean (root + dashboard)
 |-----------|-----------------|
 | Integration depth | Aave V3 is the named live project — integration targets the actual Pool contract (`repay()`, `getUserAccountData`), not a generic wrapper |
 | Execution through KeeperHub | Real value movement: USDC approve → Aave debt repayment through the KeeperHub workflow, verifiable via tx hash + the execution ID on the workflow's runs page |
-| Reliability and observability | 502-test suite, preflight dry-run simulation, safety plugin (block/daily caps, selector allowlist), KeeperHub execution polling, offline position cache |
+| Reliability and observability | 506-test suite, preflight dry-run simulation, safety plugin (block/daily caps, selector allowlist), KeeperHub execution polling, offline position cache |
 | Usefulness and originality | Proactive-not-reactive liquidation defense at HF=1.05 — retail Aave users have no autonomous defender above the MEV-bot threshold |
 | Developer experience and code quality | `npm run setup` one-command bootstrap, `bootstrap/` starter template, zero `any` types, every address in one `src/config.ts`, candid limitations documented |
 

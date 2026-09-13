@@ -112,6 +112,6 @@ If wifi drops during the demo:
 ## Running Tests
 
 ```bash
-npm test          # 502 passed (18 test files)
+npm test          # 506 tests (19 files; 2 fork-live tests skip without a fork)
 npm run lint      # 0 errors (tsc --noEmit)
 ```

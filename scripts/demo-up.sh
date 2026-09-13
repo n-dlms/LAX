@@ -34,11 +34,15 @@ if ! fork_alive; then
 fi
 
 # Warm-up: freshly booted forks answer eth_blockNumber before forking is usable.
+# Progress dots stream so the wait never looks like a hang.
 WARM_OK=0
+printf "  warming fork "
 for i in $(seq 1 15); do
   if position_ok; then WARM_OK=1; break; fi
+  printf "."
   sleep 2
 done
+printf "\n"
 
 # Self-heal: if the position read never comes back, the saved anvil state is
 # corrupt — wipe it and reboot from a fresh Base fork.
@@ -47,14 +51,16 @@ if [ "$WARM_OK" != "1" ]; then
   bash "$SCRIPT_DIR/fork-shutdown.sh" >/dev/null 2>&1 || true
   rm -rf /tmp/lax-anvil-state
   bash "$SCRIPT_DIR/start-fork.sh" | tail -1
-  for i in $(seq 1 20); do position_ok && break; sleep 2; done
+  printf "  re-warming fork "
+  for i in $(seq 1 20); do position_ok && break; printf "."; sleep 2; done
+  printf "\n"
 fi
 echo "  fork healthy"
 
-echo "[2/4] Seeding position..."
+echo "[2/4] Seeding position... (deploys MockOracle + funds the position — ~15s)"
 bash "$SCRIPT_DIR/fork-setup-usdc.sh" | tail -1
 
-echo "[3/4] Funding agentic wallet..."
+echo "[3/4] Funding agentic wallet... (impersonates + approves — ~5s)"
 bash "$SCRIPT_DIR/fund-demo-wallet.sh" | tail -4
 
 echo "[4/4] Health check..."
