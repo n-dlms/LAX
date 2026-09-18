@@ -16,9 +16,6 @@ export interface KeeperHubOptions {
 
 function opts(o?: KeeperHubOptions): Required<Pick<KeeperHubOptions, "baseUrl" | "timeoutMs">> & KeeperHubOptions {
   return {
-    // webhook triggers require a wfb_* user webhook key (kh_* org keys are
-    // only valid for /api/execute/* and /mcp — the API rejects them with
-    // `wrong_key_type`)
     apiKey: o?.apiKey ?? process.env.LAX_WEBHOOK_KEY ?? process.env.KEEPERHUB_WEBHOOK_KEY ?? process.env.KEEPERHUB_API_KEY,
     baseUrl: o?.baseUrl ?? DEFAULT_BASE,
     workflowId: o?.workflowId ?? (process.env.LAX_WORKFLOW_ID || "7gdt0ty7zk1orq1j4wc74"),
@@ -27,9 +24,7 @@ function opts(o?: KeeperHubOptions): Required<Pick<KeeperHubOptions, "baseUrl" |
   };
 }
 
-// --- HMAC signing (V2 fix #11) ---
-// Signs `${timestamp}.${body}` so replays of an old body with a fresh
-// timestamp fail verification. Proxy compares with timingSafeEqual.
+// HMAC signing for webhook payloads.
 export function signBody(timestamp: string, body: string, secret: string): string {
   return "sha256=" + createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
 }
@@ -81,9 +76,6 @@ export async function fireWorkflowWebhook(payload: unknown, o?: KeeperHubOptions
   return { ok: resp.ok, executionId, status: resp.status, raw };
 }
 
-// The platform has no per-execution UI route (app.keeperhub.com/runs/{id} is
-// gone) — the runs list lives on the workflow page, where the execution ID is
-// visible. Route verified HTTP 200 on 2026-09-12.
 export function runUrl(executionId: string, workflowId?: string): string {
   if (workflowId) return `https://app.keeperhub.com/workflows/${workflowId}`;
   return `https://app.keeperhub.com/workflows (execution ${executionId})`;

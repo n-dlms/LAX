@@ -92,8 +92,7 @@ export async function handleShock(ctx: CommandContext, args: ParsedArgs): Promis
   try {
     const oracle = await getOracleAddress(ctx);
     const currentPrice = await getPrice(ctx, oracle, token);
-    // percent → basis points (30% = 3000 bps). The dashboard copy used ×1e4 here,
-    // which made any |shock| ≥ 1% compute a negative price and revert.
+    // Percent to basis points (30% = 3000 bps).
     const multiplier = BigInt(Math.round(Math.abs(percent) * 100));
     const newPrice = percent < 0
       ? (currentPrice * (10_000n - multiplier)) / 10_000n
@@ -124,7 +123,7 @@ export async function handleFlashCrash(ctx: CommandContext, args: ParsedArgs): P
   try {
     const oracle = await getOracleAddress(ctx);
     const currentPrice = await getPrice(ctx, oracle, token);
-    // percent → basis points (see handleShock; ×1e4 here broke all crashes)
+    // Percent to basis points.
     const targetMul = BigInt(Math.round(Math.abs(percent) * 100));
     const targetPrice = (currentPrice * (10_000n - targetMul)) / 10_000n;
     const steps = 5;
@@ -247,11 +246,8 @@ export async function handleSimulateHf(ctx: CommandContext, args: ParsedArgs): P
       };
     }
 
-    // HF is affine — not proportional — in the collateral price when the
-    // position holds more than one collateral (the stablecoin leg doesn't
-    // move). Two measurements give the exact slope, so solve for the price
-    // instead of guessing the WETH/collateral mix (the old formula assumed a
-    // 60% WETH share and could drive HF far past the target).
+    // HF is affine in collateral price with multiple collaterals; use two
+    // measurements to solve for the price.
     for (let round = 0; round < 4; round++) {
       const probe = hf > targetHf ? (price * 90n) / 100n : (price * 110n) / 100n;
       await setPrice(ctx, oracle, LAX_CONFIG.WETH, probe);

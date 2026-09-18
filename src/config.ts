@@ -1,9 +1,6 @@
 export const CONFIG = {
   WALLET_ADDRESS: '0x8Bb7870242e75132Fd62265cA8ABF771d49C821C' as const,
   WALLET_SUBORG_ID: '514bb660-86a5-47e8-9f35-52d632c12803' as const,
-  // Fallback borrower (nothing in the live position). The real borrower for an
-  // on-chain demo is resolved via getBorrowerAddress() — env LAX_BORROWER_ADDRESS or
-  // the agentic-wallet executor (see scripts/deploy-workflow-sepolia.sh for 84532).
   BORROWER_ADDRESS: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as const,
 
   HF: {
@@ -26,9 +23,7 @@ export const CONFIG = {
   USDC_USD_AGGREGATOR: '0xf52D010c7d4ecBfda92c2509900593CE34535D86' as const,
   WETH_USD_AGGREGATOR: '0x9dA00D23465282005DB222a441a663eE7B9dfCc8' as const,
 
-  // Base Sepolia (84532) — real-testnet submission path, see docs/zero-cost-testnet-plan.md.
-  // Addresses from the official Aave address book (AaveV3BaseSepolia).
-  // NOTE: the USDC here is Aave's own testnet token, NOT Circle USDC.
+  // Base Sepolia addresses from the official Aave address book.
   SEPOLIA_CHAIN_ENTRY_ID: 'tqwfqleepzicpldtpomcf' as const,
   SEPOLIA_AAVE_POOL: '0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27' as const,
   SEPOLIA_USDC: '0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f' as const,
@@ -36,16 +31,10 @@ export const CONFIG = {
 
   REPAY_MODE: 2,
 
-  // Gas sponsorship for the current hackathon: KeeperHub — The Agent Economy
-  // (DoraHacks, build phase Sep 6–18, 2026). Confirmed in Discord (Sep 10):
-  // no event tag — org-level gas credits in Settings → Billing, testnet
-  // uncharged. Direct-wallet sender via public mempool only (no Safe).
-  // The wallet-pays-gas fallback (ADR-006) covers the fork demo either way.
-  // SPONSORSHIP_TAG kept as a no-op for backward-compat with deploy scripts.
   SPONSORSHIP_TAG: '',
 
   SAFETY: {
-    // ASSUMPTION: value in wei is treated as USD at 1:1 rate (no price oracle in safety plugin)
+    // Spend caps treat value as USD-equivalent for enforcement.
     BLOCK_THRESHOLD_USD: 10.00,
     DAILY_LIMIT_USD: 5.00,
     DENIED_SELECTORS: ['0x23b872dd', '0x42842e0e'],

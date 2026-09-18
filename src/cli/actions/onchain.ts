@@ -77,8 +77,7 @@ async function localWithdraw(ctx: CommandContext, token: string, amount: bigint)
 async function keeperhubTrigger(_ctx: CommandContext, _command: string, body: Record<string, unknown>): Promise<string> {
   const apiKey = CLI_ENV.KEEPERHUB_API_KEY;
   if (!apiKey) throw new Error("KEEPERHUB_API_KEY not set — cannot trigger workflow");
-  // Same proven endpoint as scripts/hf-listener.ts: the workflow's webhook
-  // trigger, Bearer-authenticated (the dashboard's /run proxy path was Vite-only).
+
   const resp = await fetch(`${LAX_CONFIG.KEEPERHUB_API}/workflows/${LAX_CONFIG.WORKFLOW_ID}/webhook`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },

@@ -1139,9 +1139,6 @@ export default function MonitorView({ onTrigger, autoTriggerBlocked }: MonitorVi
     if (position && listenerAlive) {
       const hf = hfToNumber(position.healthFactor);
       if (prevTriggeredRef.current === false && hf <= LAX_CONFIG.HF_TRIGGER && !autoTriggerBlocked.current) {
-        // Auto-trigger only when the guardian is armed — same contract as the
-        // CLI's `lax autopilot` (previously the dashboard fired on page load
-        // whenever HF was low, even with the guardian disarmed).
         if (!guardianState.enabled) {
           newLogs.push({
             ts: Date.now(),

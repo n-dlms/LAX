@@ -1,7 +1,4 @@
-// Node implementation of the CLI CommandContext (see dashboard/src/cli/types.ts).
-// This is what makes the extracted cli/ core a standalone binary: raw JSON-RPC
-// to the fork/testnet, guardian state persisted to ~/.lax/state.json, and the
-// KeeperHub webhook trigger with fire-time exact repay (V2 plan, fix #2).
+// Node implementation of the CLI CommandContext.
 import { LAX_CONFIG } from "./lax-config";
 import type { CliEvent, GuardianState, Snapshot } from "./types";
 import { cliDispatcher } from "./dispatcher";
@@ -14,9 +11,7 @@ import { rpc as sharedRpc, waitNextBlock } from "./rpc-utils";
 
 export { waitNextBlock };
 
-// keccak("getUserAccountData(address)")[:4] — verified live against the Pool
-// (the dashboard copy shipped selector 0x2dfdf0b5, which reverts: it never
-// actually read a live position, only mock data).
+// Selector for Pool.getUserAccountData(address).
 const GET_USER_ACCOUNT_DATA_SELECTOR = "0xbf92857c";
 
 interface RpcResponse {
@@ -78,10 +73,7 @@ export async function fetchPosition(
   }
 }
 
-// --- persisted guardian state (~/.lax/state.json) ---
-// Shared with the daemon (src/autopilot/state.ts): same file, same log. The
-// CLI merges its guardian fields into the existing state instead of rewriting
-// the file, so `lax arm` cannot clobber daemon fields (lastFiredBy, spend).
+// Persisted guardian state (~/.lax/state.json) shared with the daemon.
 import { LAX_CONFIG as CFG } from "./lax-config";
 import {
   loadState as loadDaemonState,
@@ -109,16 +101,13 @@ export function mitigationLogPath(): string {
 }
 
 
-// --- fire-time exact repay (V2 fix #2) + gate (fix #1) ---
-// Computes the exact repay amount at trigger time so the workflow's static
-// amount is always fresh (platform limitation: dynamic {{...}} refs rejected).
-// Every fire passes the mitigation gate first — same pipeline as the daemon.
+// Fire-time repay calculation and mitigation gate.
 export async function fireMitigationWebhook(reason: string): Promise<{ executionId: string; repayUsdc: bigint; hfAtTrigger: number; gate: string } | { error: string }> {
   const pos = await fetchPosition();
   if (!pos) return { error: "position read failed at trigger time" };
   if (pos.totalDebtUSD === 0n) return { error: "no debt to repay" };
 
-  // exact amount for HF target, +1% buffer (same math as the daemon)
+  // Exact repay for HF target with 1% buffer.
   const hfTarget18 = hfToBigint(LAX_CONFIG.HF_TARGET);
   const exact = computeRepayAmount(pos.totalDebtUSD, pos.healthFactor, hfTarget18);
   const repayUsdc = (exact * 101n) / 100n;
@@ -208,8 +197,6 @@ export function createNodeContext(): import("./types").CommandContext {
       if (process.stdout.isTTY) console.clear();
     },
     engageProtection: () => {
-      // Async fire is intentional: handlers are sync-blocking; the daemon path
-      // uses fireMitigationWebhook() directly with full logging.
       void fireMitigationWebhook("cli-engage").then((r) => {
         if ("error" in r) print("error", `Engage failed: ${r.error}`);
         else print("info", `KeeperHub execution ${r.executionId} — ${LAX_CONFIG.KEEPERHUB_RUN_URL(r.executionId)}`);

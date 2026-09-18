@@ -1,7 +1,4 @@
-// Dry-run simulations for the mitigation gate — synchronous by design.
-// Previously shelled out to Foundry's `cast`; now runs a self-contained Node
-// JSON-RPC helper (scripts/preflight-call.mjs) so Node is the only runtime
-// dependency (V2 plan fix #10).
+// Dry-run simulations for the mitigation gate via JSON-RPC helper.
 import { execFileSync } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'

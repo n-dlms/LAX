@@ -220,9 +220,6 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
 
   const triggerWorkflow = useCallback(async () => {
     try {
-      // M4: try edge proxy first (holds API key server-side), fallback to direct key.
-      // The webhook endpoint requires the wfb_* webhook key — the kh_* org key is
-      // rejected (wrong_key_type). Same preference order as src/keeperhub.ts.
       const proxyUrl = `/api/keeperhub-proxy/workflows/${LAX_CONFIG.WORKFLOW_ID}/webhook`;
       const apiKey = import.meta.env.VITE_KEEPERHUB_WEBHOOK_KEY ?? import.meta.env.VITE_KEEPERHUB_API_KEY ?? "";
       const useProxy = !apiKey; // if no VITE key, try proxy
@@ -275,9 +272,6 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
       setExecutionId(id);
       setWebhookNote(null);
     } catch (err) {
-      // Non-blocking: the KeeperHub run is the audit trail, the local fork
-      // repair below is the visible mitigation. A missing key or an
-      // undeployed edge proxy must not blank the dashboard.
       setWebhookNote(err instanceof Error ? err.message : String(err));
     }
   }, [event, borrowerAddress, rpcUrl]);
@@ -290,19 +284,9 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
     }
   }, [triggerWorkflow]);
 
-  // Local Anvil execution steps — the visible repair. Runs for a local RPC
-  // independently of the KeeperHub trigger: if the webhook is unavailable (no
-  // key, undeployed edge proxy) or the relayer can't reach the fork, the user
-  // still watches approve → repay → verify complete on-chain here.
-  // Deps are intentionally narrowed to rpcUrl + retryNonce: the trigger event
-  // object is rebuilt on every position poll and the KeeperHub execution id
-  // arrives mid-repair — either re-running this effect would cancel the
-  // in-flight repay (approve lands, repay never does) and the token guard
-  // below would block the restart. Retry is the only legitimate restart.
+  // Local fork repair runs independently of the KeeperHub trigger.
   useEffect(() => {
     if (!isLocalRpc(rpcUrl)) return;
-    // Run at most once per attempt — the effect re-runs when the KeeperHub
-    // execution id arrives, which would otherwise double-fire the repay.
     if (localRunTokenRef.current === retryNonce) return;
     localRunTokenRef.current = retryNonce;
     let cancelled = false;
@@ -390,8 +374,6 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
         currentStepId = "verify";
         await new Promise((r) => setTimeout(r, 2000));
 
-        // A read immediately after the repay tx can race block settlement and
-        // return a transient 0 — retry before declaring the verify failed.
         let newHf = 0;
         for (let attempt = 0; attempt < 3; attempt++) {
           if (cancelled) return;
@@ -464,12 +446,8 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
     // eslint-disable-next-line react-hooks/exhaustive-deps -- narrow deps by design; see comment above
   }, [rpcUrl, retryNonce]);
 
-  // Monitor completion via KeeperHub polling - merge steps
   useEffect(() => {
     if (polledEvent && (polledEvent.status === "resolved" || polledEvent.status === "failed")) {
-      // The relayer can report "failed" while the local fork repair is still
-      // running (it executes on the real network, the fork locally). Wait for
-      // the local path to finish before letting a remote failure decide.
       if (polledEvent.status === "failed" && !localDoneRef.current) return;
       const timeout = setTimeout(() => {
         const local = localStepsRef.current;
@@ -495,8 +473,6 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
         const localArr = local ?? [];
         const localAllSuccess = localFinal?.status === "resolved"
           || (localFinal === null && localArr.length > 0 && localArr.every((s) => s.status === "success"));
-        // Fork evidence wins: the relayer's "failed" cannot override a local
-        // on-chain success, and the locally read final HF is the real one.
         const finalStatus = localAllSuccess ? "resolved" : polledEvent.status;
         onComplete({
           ...event,
@@ -522,8 +498,6 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
     localFinalRef.current = null;
     localDoneRef.current = false;
     if (!executionId) {
-      // No execution id: re-fire the webhook trigger (direct call), and the
-      // nonce bump below restarts the local repair in every case.
       hasTriggeredRef.current = true;
       triggerWorkflow();
     }

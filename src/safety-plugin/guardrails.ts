@@ -11,8 +11,7 @@ interface SafetyConfig {
 
 const SELECTOR_LENGTH = 10
 
-// Daily spend persists to disk so a daemon restart cannot reset the cap
-// (previously in-memory only — a judge-findable hole, see V2 plan fix #3).
+// Daily spend persists to disk so a restart cannot reset the cap.
 const SAFETY_STATE_FILE = join(
   process.env.LAX_STATE_DIR || join(homedir(), '.lax'),
   'safety.json',

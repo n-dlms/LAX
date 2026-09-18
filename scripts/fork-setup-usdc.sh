@@ -64,9 +64,7 @@ cast rpc anvil_setStorageAt $USDC $BORROWER_SLOT \
 echo "  Borrower USDC: $(cast call $USDC "balanceOf(address)(uint256)" $BORROWER --rpc-url $RPC | awk '{print $1}')"
 
 echo ""
-# Idempotency guard: a fork restored from saved state already has this position.
-# Re-running supply+borrow on it over-leverages the borrower until
-# getUserAccountData panics with arithmetic underflow (availableBorrows < 0).
+# Idempotency guard: skip seeding if a position already exists.
 EXISTING_DEBT=$(cast call $POOL "getUserAccountData(address)(uint256,uint256,uint256,uint256,uint256,uint256)" $BORROWER --rpc-url $RPC 2>/dev/null | sed -n '2p' | awk '{print $1}')
 if [ -n "$EXISTING_DEBT" ] && [ "$EXISTING_DEBT" != "0" ] && [ "$EXISTING_DEBT" != "0 [0.0e0]" ]; then
   echo "[5/5] Position already seeded (debt ${EXISTING_DEBT}) — skipping supply/borrow"

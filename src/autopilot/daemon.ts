@@ -1,9 +1,4 @@
-// lax autopilot daemon — continuous proactive liquidation defense.
-// Replaces the one-shot scripts/hf-listener.ts as the primary trigger path:
-//   poll HF (all positions from lax.config.json) → cooldown → mitigation gate
-//   (math + preflight + caps) → KeeperHub webhook (HMAC-signed) → append-only log.
-// Nothing is inferred at execution time: the exact repay amount is computed at
-// fire time and passed in the payload (V2 plan fix #2).
+// Autopilot daemon — continuous liquidation defense.
 import { LAX_CONFIG } from "../cli/lax-config";
 import { fetchPosition } from "../cli/node-context";
 import { style, TOKENS } from "../cli/ui";
@@ -165,7 +160,6 @@ async function pollOnce(
     return { decision: "healthy", fired: false };
   }
 
-  // --- trigger conditions met ---
   const lastFired = state.lastFiredBy?.[position.name] ?? 0;
   const sinceLast = lastFired ? Date.now() - lastFired : Infinity;
   if (sinceLast < cooldownMs) {
@@ -175,7 +169,7 @@ async function pollOnce(
 
   const targetHf = hfToBigint(position.target);
   const exact = computeRepayAmount(pos.totalDebtUSD, pos.healthFactor, targetHf);
-  const repayUsdc = (exact * 101n) / 100n; // +1% buffer, same as hf-listener
+  const repayUsdc = (exact * 101n) / 100n; // 1% buffer
   if (repayUsdc === 0n) {
     log(TOKENS.warn, style.yellow, `${tag} HF ${hf.toFixed(4)} ≤ trigger but computed repay is zero — skipping`);
     return { decision: "zero-repay", fired: false };

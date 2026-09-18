@@ -1,9 +1,4 @@
-// The mitigation gate — nothing fires without passing all four stages.
-// Stage 1: HF math verification (repay amount reaches the target within tolerance)
-// Stage 2: preflight simulation (dry-run approve+repay against the RPC)
-// Stage 3: safety bounds (selector allowlist) + Stage 4: per-block/per-day spend caps
-// This was previously a manual/procedural step documented in agent/skills —
-// now it is wired into every fire path: daemon, CLI engage, and hf-listener.
+// Mitigation gate — four stages must pass before any transaction.
 import { runCritique, type CritiqueReport } from "../critique-agent";
 import { checkSafety } from "../safety-plugin/guardrails";
 import { getWalletAddress } from "../wallet";
@@ -42,8 +37,6 @@ export interface GateOptions {
 }
 
 export function runMitigationGate(input: GateInput, opts: GateOptions = {}): GateDecision {
-  // the executing wallet resolves from env / wallet.json / config — any
-  // Turnkey agentic wallet works, LAX does not hardcode one
   const wallet = input.walletAddress ?? getWalletAddress().walletAddress;
   const report = runCritique({
     currentHf: input.currentHf,
@@ -64,7 +57,6 @@ export function runMitigationGate(input: GateInput, opts: GateOptions = {}): Gat
     durationMs: r.durationMs,
   }));
 
-  // Stage 3 extension: spend caps. checkSafety treats 1e18 wei as $1.
   const usd = Number(input.repayAmount) / 1e6;
   const cap = checkSafety("transfer", { value: BigInt(Math.round(usd * 1e18)).toString() }, { record: opts.recordSpend !== false });
   stages.push({

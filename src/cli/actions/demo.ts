@@ -55,9 +55,6 @@ async function shockWethPrice(shockPct: number): Promise<{ oldPrice: bigint; new
   const newPrice = (oldPrice * BigInt(Math.round(100 - shockPct))) / 100n;
   try {
     await setWethPrice(newPrice);
-    // The verification read can race block settlement right after the write —
-    // in the narration this printed the pre-crash price on both sides of the
-    // arrow. Re-read (bounded) before reporting the price the user sees.
     let verified = await readWethPrice();
     for (let attempt = 0; attempt < 3; attempt++) {
       if (verified !== null && verified !== oldPrice) break;
@@ -114,8 +111,6 @@ async function oracleAddress(): Promise<string> {
 }
 
 async function waitAMine(): Promise<void> {
-  // Anvil with default settings mines on demand for sendTransaction; wait one
-  // block so the price write is definitely visible to the next eth_call.
   try {
     const { waitNextBlock } = await import("../rpc-utils");
     const before = await rpc<string>("eth_blockNumber", []);
@@ -124,9 +119,7 @@ async function waitAMine(): Promise<void> {
 }
 
 export async function handleDemo(ctx: CommandContext, args: ParsedArgs): Promise<CommandResult> {
-  // The seeded demo scenario (~$665 collateral / $480 debt) needs ~$32–47 of
-  // repay — the wallet-ops default caps ($10/$5) would block an honest repair.
-  // Size up for THIS process only, unless the operator set their own.
+  // Demo caps are sized for the seeded scenario.
   if (!process.env.LAX_BLOCK_THRESHOLD_USD) process.env.LAX_BLOCK_THRESHOLD_USD = "50";
   if (!process.env.LAX_DAILY_LIMIT_USD) process.env.LAX_DAILY_LIMIT_USD = "100";
   const shockPct = (() => {
@@ -204,8 +197,7 @@ export async function handleDemo(ctx: CommandContext, args: ParsedArgs): Promise
   beat("4 · TRIGGER — the mitigation gate decides");
   const targetHf = LAX_CONFIG.HF_TARGET;
   const targetBig = hfToBigint(targetHf);
-  // Repay is computed from the CURRENT position (the same read the gate verifies
-  // against) — a stale read fails HF-math verification by construction.
+  // Repay is computed from the current position read.
   const current = await fetchPosition();
   if (!current || current.totalDebtUSD === 0n) {
     return { output: "Position read failed at trigger time — is the fork still up?", error: "Position unavailable" };
@@ -241,11 +233,6 @@ export async function handleDemo(ctx: CommandContext, args: ParsedArgs): Promise
   await sleep(700);
 
   // ── Beat 5: fire ──
-  // The KeeperHub relayer submits to the REAL network named in the workflow —
-  // it cannot reach a local Anvil fork. So the live demo executes the exact
-  // approve → repay calls on the fork itself (same calldata the workflow runs
-  // on a live chain), and --webhook additionally fires the KeeperHub workflow
-  // for the audit-trail story.
   beat("5 · Fire — execute the approved mitigation");
   let executionId: string | undefined;
   let txHashes: string[] = [];
@@ -262,7 +249,6 @@ export async function handleDemo(ctx: CommandContext, args: ParsedArgs): Promise
       ]));
       say(TOKENS.info, `repay:   Aave Pool.repay(USDC, ${usdcToString(repayUsdc)}, mode 2, onBehalfOf borrower)`);
       txHashes.push(await rpcAt<string>(LAX_CONFIG.FORK_RPC, "eth_sendTransaction", [
-        // Aave repay burns ~250k gas — 100k reverts out-of-gas on the Pool path
         { from: LAX_CONFIG.BORROWER_ADDRESS, to: LAX_CONFIG.AAVE_POOL, gas: "0x493e0", data: repayData },
       ]));
       for (const h of txHashes) console.log(`   ${style.gray("tx:")} ${style.underline(style.blue(h))}`);
