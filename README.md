@@ -178,7 +178,7 @@ Wired into [`opencode.jsonc`](opencode.jsonc) as the `lax-guardian` agent.
 | `contracts/MockOracle.sol` | Fork-demo scaffolding to shock the price oracle (never deployed live) |
 | `api/` | Edge proxy example so the browser never holds your API key (HMAC-verified) |
 | `docs/` | Curated docs — start at [`docs/README.md`](docs/README.md) |
-| `tests/` | Vitest suite (13 files) — repay math, gate stages, preflight, safety, config; `bootstrap/tests/` adds a 14th for the starter template |
+| `tests/` | Vitest suite (19 files, 506 tests) — repay math, gate stages, preflight, safety, config, alerts, watch, whatif, state durability; `bootstrap/tests/` adds repay-math for the starter template |
 
 ## Documentation
 

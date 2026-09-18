@@ -1,5 +1,19 @@
 # LAX Architecture
 
+> **Reading note (Sep 2026):** this document is the Phase 2 architecture sprint
+> record (2026-07-05) and parts of it are historical — the authoritative
+> current-state docs are [`../README.md`](../README.md),
+> [`SUBMISSION-DRAFT.md`](SUBMISSION-DRAFT.md), [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md),
+> and [`SETUP.md`](SETUP.md). Key deltas since this was written: the primary
+> trigger path is now `lax autopilot` daemon (`src/autopilot/daemon.ts`), not the
+> one-shot `scripts/hf-listener.ts`; the dashboard lives in `dashboard/` (not
+> `src/dashboard/`); gas sponsorship is org-level credits with no event tag
+> (confirmed Discord Sep 10); audit-trail links point at the workflow runs page
+> (`app.keeperhub.com/workflows/<id>` — no per-execution route); and the Sepolia
+> workflow repays a static 0.3 USDC (platform rejects dynamic uint256 refs —
+> see `SUBMISSION-DRAFT.md` "what still breaks"). Build journal moved to
+> [`archive/`](archive/README.md).
+
 **Date**: 2026-07-05
 **Phase**: 2 (Architecture Sprint)
 **Status**: Accepted

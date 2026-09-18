@@ -14,7 +14,7 @@
     }
   },
   "positions": [
-    { "name": "main", "borrower": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "network": "base-fork" },
+    { "name": "main", "borrower": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "network": "base-fork", "threshold": 1.05, "target": 1.10 },
     { "name": "sepolia", "borrower": "0x26833b05be49036d4de306b1f4fba7713cc84de5", "network": "base-sepolia", "threshold": 1.2, "target": 1.5 }
   ]
 }

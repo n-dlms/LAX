@@ -6,7 +6,7 @@ import { LAX_CONFIG, APP_NAME } from "../lax-config";
 import { CLI_ENV } from "../env";
 
 export async function handleVersion(_ctx: CommandContext): Promise<CommandResult> {
-  return { output: `${APP_NAME} v0.1.0 — Liquidation Autopilot` };
+  return { output: `${APP_NAME} v2.0.0 — Liquidation Autopilot` };
 }
 
 export async function handleClear(ctx: CommandContext): Promise<CommandResult> {
