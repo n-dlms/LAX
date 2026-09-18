@@ -241,8 +241,10 @@ state; the daemon refuses to auto-fire when disarmed and says so.
 *Aliases: `guard-on`, `guard-off`, `guard-status`*
 
 The same switch as arm/disarm with explicit words. `guardian status` shows
-armed state, threshold, and target in one line. `guardian off` requires
-**Confirm** — turning protection *off* is the dangerous direction.
+armed state, threshold, and target in one line. Both `guardian on` and
+`guardian off` execute immediately without confirmation (parity with
+`lax arm` / `lax disarm`); only high-stakes commands like `engage` and
+`flash-crash` require confirmation.
 
 ---
 

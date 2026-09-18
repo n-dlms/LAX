@@ -113,12 +113,12 @@ punishment, they're how Aave protects depositors — but for the borrower they'r
 the single worst outcome.
 
 ### MEV bots and Flashblocks
-**MEV** ("maximal extractable value") is profit from *being first* to act on
-public blockchain information. Liquidation bots watch every oracle update and
-fire liquidation transactions within the same block — on Base, **Flashblocks**
-make blocks arrive so fast that a human literally cannot compete. A reactive
-service that "alerts you when HF is low" has already lost. This is the core
-insight LAX is built on.
+**MEV** (maximal extractable value) is profit from being first to act on
+public blockchain information. Liquidation bots monitor oracle updates and can
+submit liquidation transactions in the same block the price changes — on Base,
+Flashblocks shorten block times, reducing the window for manual intervention.
+A reactive alert at HF 1.0 leaves little time to act. This is why LAX acts
+proactively at HF 1.05.
 
 ### Liquidation threshold
 The safety margin Aave applies per collateral type — how much borrowing power
@@ -131,9 +131,9 @@ formula.
 ## Part 4 — What LAX does about it
 
 ### Proactive, not reactive
-Bots act when HF **≤ 1.0**. LAX acts when HF hits **1.05** — *before* there's
-anything for a bot to take. There is no race, because by the time the crash
-meets the bots, your position is already repaired.
+Bots can act when HF ≤ 1.0. LAX is configured to act at HF 1.05 — before the
+position becomes liquidatable — so the repair is submitted before liquidation
+is profitable.
 
 ### The trigger and the target
 LAX's defaults: **trigger at HF 1.05**, **restore to HF 1.10**. Both are

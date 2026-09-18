@@ -1,24 +1,21 @@
 # LAX Architecture
 
-> **Reading note (Sep 2026):** this document is the Phase 2 architecture sprint
-> record (2026-07-05) and parts of it are historical — the authoritative
-> current-state docs are [`../README.md`](../README.md),
-> [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md), and [`SETUP.md`](SETUP.md).
-> Key deltas since this was written: the primary trigger path is now
-> `lax autopilot` daemon (`src/autopilot/daemon.ts`), not the one-shot
-> `scripts/hf-listener.ts`; the dashboard lives in `dashboard/` (not
-> `src/dashboard/`); gas sponsorship is org-level credits with no event tag
-> (confirmed Discord Sep 10); audit-trail links point at the workflow runs page
-> (`app.keeperhub.com/workflows/<id>` — no per-execution route); and the Sepolia
-> workflow repays a static 0.3 USDC (the platform rejects dynamic uint256 template
-> refs — the daemon computes the exact amount at fire time and sends it in the
-> webhook payload).
+> **Historical document — 2026-07-05 Phase 2 sprint record.** Retained for context.
+> The authoritative current-state references are [`../README.md`](../README.md),
+> [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md), [`SETUP.md`](SETUP.md), and
+> [`CLI-GUIDE.md`](CLI-GUIDE.md). Key changes since this was written:
+> primary trigger is `lax autopilot` daemon (`src/autopilot/daemon.ts`), not
+> `scripts/hf-listener.ts` (legacy one-shot listener); dashboard is `dashboard/`
+> (not `src/dashboard/`); gas is org-level credits with no event tag (confirmed
+> Discord Sep 10); audit links are `app.keeperhub.com/workflows/<id>` (no
+> per-execution route); Sepolia workflow repays static 0.3 USDC (platform
+> rejects dynamic uint256 refs — daemon computes exact amount and sends it in
+> payload); Anvil fork is `127.0.0.1:18545` (not 8545); thresholds are 1.05
+> trigger / 1.10 target per `src/config.ts`.
 
-**Date**: 2026-07-05
-**Phase**: 2 (Architecture Sprint)
-**Status**: Accepted
-**Grounded In**: ADR-001 through ADR-007, MISSION.md, SCOPE.md (revised), PLAYBOOK.md:26-39
-**Authority**: This document is binding for Phase 3 (Core Build). Any deviation requires a new ADR or an explicit revision to this doc.
+**Date**: 2026-07-05 (historical)
+**Phase**: 2 (Architecture Sprint — archived)
+**Status**: Superseded by current codebase; see README for current design
 
 ---
 
@@ -31,11 +28,12 @@ LAX is **not one process** — it is a coordinated set of processes that boot to
 | Process | Lifecycle | Port / I/O | Responsibility |
 |---------|-----------|------------|----------------|
 | **Anvil fork** | Demo-long | `127.0.0.1:18545` (HTTP RPC) | Holds the Base-mainnet-forked EVM state. Receives `anvil_setStorageAt` oracle overrides. Accepts `eth_sendRawTransaction` from `@keeperhub/wallet`. |
-| **HF listener** (`scripts/hf-listener.ts`) | Demo-long, daemon | Polls Anvil RPC, POSTs to KeeperHub webhook | Polls `getUserAccountData` at 2s intervals on the Anvil fork. When HF <= 1.05, POSTs `{ health_factor, user_address }` to KeeperHub's `/api/workflows/<id>/webhook`. Shuts down after one successful POST to prevent re-fires. |
-| **OpenCode agent** | Started by demo operator on `lax` command | Stdin/stdout, MCP servers configured in `opencode.jsonc` | The LLM-driven control loop. Picks the per-workflow MCP tool `lax-liquidation-armor` when triggered. Calls `web3/write-contract` for approve, then `repayDebt` via the Aave V3 plugin. |
-| **KeeperHub MCP server** (aggregate + per-workflow) | Hosted by KeeperHub | `https://app.keeperhub.com/mcp` and `/mcp/w/lax-liquidation-armor` over HTTP/SSE | Not a process we run — remote service. Receives MCP calls, dispatches to KeeperHub's executor, returns results. |
-| **KeeperHub executor** | Hosted by KeeperHub | Internal to KeeperHub | The server-side engine that fires the workflow, signs via Turnkey, broadcasts the tx to whatever RPC the workflow is configured for (in our case, the demo Anvil fork's `localhost:18545`). |
-| **Dashboard** (`src/dashboard/`) | Demo-long, served by Vite dev server | `127.0.0.1:5173` (Vite default) | Single-page React + Tailwind app. Polls `get_execution_logs` (via the agent's MCP bridge) at adaptive intervals. Renders the 8 beats. |
+| **Autopilot daemon** (`src/autopilot/daemon.ts`) — current path | Demo-long, daemon | Polls `getUserAccountData` every 2s per position via `lax.config.json` | Replaces the legacy `scripts/hf-listener.ts` one-shot listener. When HF <= threshold, runs the 4-stage gate and POSTs HMAC-signed webhook to KeeperHub. |
+| **HF listener** (`scripts/hf-listener.ts`) — legacy | Legacy / one-shot | Polls Anvil RPC, POSTs to KeeperHub webhook | Retained for reference. Current demo uses the autopilot daemon. |
+| **OpenCode agent** | Started by demo operator on `lax` command | Stdin/stdout, MCP servers configured in `opencode.jsonc` | Control loop for agentic actions. Production mitigation path is webhook → KeeperHub workflow (no LLM in critical trigger path). |
+| **KeeperHub MCP server** (aggregate + per-workflow) | Hosted by KeeperHub | `https://app.keeperhub.com/mcp` and `/mcp/w/lax-liquidation-armor` over HTTP/SSE | Remote service. Receives MCP calls, dispatches to KeeperHub's executor, returns results. |
+| **KeeperHub executor** | Hosted by KeeperHub | Internal to KeeperHub | Server-side engine that fires the workflow, signs via Turnkey, broadcasts the tx to the workflow's configured RPC (fork `127.0.0.1:18545` or `https://sepolia.base.org`). |
+| **Dashboard** (`dashboard/`) | Demo-long, served by Vite dev server | `127.0.0.1:5173` (Vite default) | Single-page React + Tailwind app. Shares the CLI command core; shows monitor and audit views. |
 
 ### 1.2 Scripts (run-once orbiotics)
 
@@ -232,11 +230,11 @@ Each component listed below owns exactly one responsibility and one state transi
 | # | Component | File(s) | State(s) Owned | Input | Output |
 |---|-----------|---------|----------------|-------|--------|
 | C1 | **Fork booter** | `scripts/start-fork.sh`, `scripts/fork-setup-usdc.sh` | BOOT | Base RPC URL, pinned block number | Anvil RPC at localhost:18545 with seeded USDC balance |
-| C2 | **HF listener** | `scripts/hf-listener.ts` | WATCHING → TRIGGERED | Poll `http://localhost:8545` Aave V3 Pool → getUserAccountData | POST to KeeperHub `/api/workflows/<id>/webhook` when HF <= 1.05 |
-| C3 | **Safety plugin** | `src/safety-plugin/keeperhub-safety-interceptor.ts` | All states (always-on gate) | Intercepts `executeWorkflow` calls from OpenCode | Throws on `GAS_SPONSORSHIP_*`, `DAILY_CAP_EXHAUSTED`, `SELECTOR_DENIED` |
-| C4 | **NIM + OpenCode agent loop** | `opencode.jsonc`, `src/lax-liquidation-armor.md` | TRIGGERED → APPROVING → REPAYING → RESOLVED | Workflow execution start signal | Two txns on Anvil fork; reads back `getUserAccountData` to confirm HF recovery |
-| C5 | **Dashboard** | `src/dashboard/` (all files) | BEAT 1-8 rendering (UI passive, no own state) | Polls C4 + C2 outputs via MCP bridge | Renders 8-beat reactive UI |
-| C6 | **Gas fallback handler** | (built into safety plugin C3) | Owns the auto-retry | `keepwork exec --gas true` → `GAS_SPONSORSHIP_*` error | Auto-retries `keepwork exec --gas false` (wallet-pays) |
+| C2 | **Autopilot daemon** | `src/autopilot/daemon.ts` (+ `gate.ts`) | WATCHING → TRIGGERED | Poll `127.0.0.1:18545` (or configured RPC) Aave Pool `getUserAccountData` | Gate → HMAC webhook to KeeperHub when HF <= 1.05 |
+| C3 | **Safety plugin** | `src/safety-plugin/` | All states (always-on gate) | Intercepts execution calls | Throws on `DAILY_CAP_EXHAUSTED`, `BLOCK_THRESHOLD_EXCEEDED`, `SELECTOR_DENIED` |
+| C4 | **KeeperHub workflow** | KeeperHub | TRIGGERED → APPROVING → REPAYING → RESOLVED | Workflow execution start signal | Two txns (approve → repay) on target network; re-reads `getUserAccountData` to confirm HF |
+| C5 | **Dashboard** | `dashboard/` (all files) | Rendering (passive, shares CLI core) | Polls execution status via KeeperHub API | Renders monitor and audit views |
+| C6 | **Gas handling** | KeeperHub billing (org credits) + wallet-pays fallback | Auto-retry | Sponsored execution path | Wallet-pays on fork when sponsorship unavailable |
 
 ### 3.3 Component Interaction Pattern (The Only Pattern in LAX)
 
@@ -429,15 +427,15 @@ The footer persists across all 3 screens. Screen 3 is shown after the `RESOLVED`
 
 | Item | Hardcoded in `src/config.ts` | Why |
 |------|------------------------------|-----|
-| Health factor thresholds | `HF_HEALTHY = 1.10`, `HF_WATCH = 1.05`, `HF_TRIGGER = 1.05`, `HF_TARGET = 1.10` | These are decision constants, not configurable at build time. Changeable before demo. |
-| Demo wallet address | `WALLET_ADDRESS = "0x8Bb7870242e75132Fd62265cA8ABF771d49C821C"` | Provisioned via `kh wallet add`. Turnkey subOrgId: `514bb660-86a5-47e8-9f35-52d632c12803`. |
-| Aave V3 Pool address | `AAVE_POOL = "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"` | Base mainnet constant. Will never change mid-demo. |
-| USDC token address (Base) | `USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"` | Base mainnet constant. |
-| Chainlink USB/USD Aggregator (Base) | `USDC_USD_AGGREGATOR = "0x7e860098F58bBFC8648a4311b374B1D6690aD9c5"` | Base mainnet address for the Aggregator. |
-| Chainlink WETH/USD Aggregator (Base) | `WETH_USD_AGGREGATOR = "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"` | Base mainnet address for the Aggregator. |
-| Pinned fork block number | `FORK_BLOCK = TBD` | Selected in Phase 3 week 2 per ADR-007 criteria. Hardcoded so the fork boots identically every time. |
-| Wallet `safety.json` limits | `BLOCK_THRESHOLD_USD = 1.00`, `DAILY_LIMIT_USD = 5.00` | Per ADR-003. Hardcoded in the `safety.json` template at `scripts/safety.json.demo`. |
-| Gas sponsorship | Org-level credits (no event tag — Discord Sep 10), testnet uncharged; direct-wallet sender via public mempool |
+| Health factor thresholds | `HF_HEALTHY = 1.10`, `HF_TRIGGER = 1.05`, `HF_TARGET = 1.10` (`src/config.ts:9-14`) | Decision constants; per-position `threshold`/`target` in `lax.config.json` override. |
+| Demo wallet address | `WALLET_ADDRESS = "0x8Bb7870242e75132Fd62265cA8ABF771d49C821C"` | Turnkey subOrgId: `514bb660-86a5-47e8-9f35-52d632c12803` (`src/config.ts:2-3`). |
+| Aave V3 Pool address | `AAVE_POOL = "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"` | Base mainnet constant (`src/config.ts:23`). |
+| USDC token address (Base) | `USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"` | Base mainnet constant (`src/config.ts:24`). |
+| Chainlink USDC/USD Aggregator (Base) | `USDC_USD_AGGREGATOR = "0xf52D010c7d4ecBfda92c2509900593CE34535D86"` | `src/config.ts:26`. |
+| Chainlink WETH/USD Aggregator (Base) | `WETH_USD_AGGREGATOR = "0x9dA00D23465282005DB222a441a663eE7B9dfCc8"` | `src/config.ts:27`. |
+| Pinned fork block number | `FORK_BLOCK = 48236883` | So the fork boots identically (`src/config.ts:55`). |
+| Spend caps | `BLOCK_THRESHOLD_USD = 10.00`, `DAILY_LIMIT_USD = 5.00` | `src/config.ts:49-50`; demo run sizes to $50/$100 for that execution. |
+| Gas sponsorship | Org-level credits (no event tag — Discord Sep 10), testnet uncharged; direct-wallet sender via public mempool; wallet-pays fallback on fork |
 
 **Everything else is real**: MCP calls reach the actual KeeperHub server. Wallet signing goes through Turnkey custody. The Anvil fork holds real Base mainnet state (pinned at the fork block). The `get_execution_logs` response is the actual KeeperHub audit trail.
 

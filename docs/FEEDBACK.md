@@ -201,4 +201,4 @@ only the webhook-key documentation suggestion still stands.
 
 ---
 
-*Submitted as part of LAX's Agents Onchain hackathon submission. Built by @dlamini on OpenCode + NVIDIA NIM.*
+*Submitted as part of LAX's Agents Onchain hackathon submission. Built by @dlamini on OpenCode.*

@@ -82,7 +82,7 @@ and the background daemon that defends positions around the clock.
 ### Install and boot the demo
 
 ```bash
-git clone <repo-url> && cd LAX
+git clone https://github.com/n-dlms/LAX.git && cd LAX
 npm install
 cp .env.example .env        # then edit .env with your keys (see §12)
 ./scripts/demo-up.sh        # forks Base mainnet, seeds a vulnerable position, funds the wallet
@@ -264,9 +264,10 @@ Nothing moves funds without passing every layer below, in order:
 > *successful* safety outcome. The gate prints each stage's verdict and nothing
 > touches the chain.
 
-Default caps are deliberately small — they protect a demo wallet ($10 per
-transaction, $5 per day). The fork demo repays ~$30–47, so the demo sizes its
-own caps to $50/$100 automatically. For real positions, set:
+Default caps are deliberately small for the demo wallet ($10 per
+transaction, $5 per day, persisted in `~/.lax/safety.json`); the fork demo
+sizes its caps to $50/$100 automatically for that run so the ~$30–47 repay
+is not blocked. For real positions, set:
 
 ```bash
 LAX_BLOCK_THRESHOLD_USD=200   # max per transaction

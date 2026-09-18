@@ -1,7 +1,7 @@
 # LAX — Verified Testing Log
 
-**Date:** 2026-09-06 · **Environment:** Linux x64, Node v24.16.0, Anvil fork of Base mainnet @ block 48236883, Base Sepolia (84532) live testnet.
-Every claim below was executed against a live chain or a real KeeperHub deployment on this date. Nothing in this document is aspirational.
+**Date:** 2026-09-06 (live fire) · Updated 2026-09-18 · **Environment:** Linux x64, Node v24.16.0, Anvil fork of Base mainnet @ block 48236883, Base Sepolia (84532) live testnet.
+Every claim below was executed against a live chain or a real KeeperHub deployment. Nothing in this document is aspirational.
 
 ---
 
@@ -92,15 +92,13 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 ## 5. Test suite & static checks
 
 - `npx tsc --noEmit` — clean (root + dashboard).
-- `npx vitest run` — **19 files, 506 tests** — 504 pass everywhere, 2 fork-live tests skip without a fork (run date 2026-09-13; suite grew
-  from 467 with the V2.1 features: state durability, persisted runs/explain,
-  whatif, watch sparkline, operator alerts).
+- `npx vitest run` — **21 files, 518 tests** (run date 2026-09-18; suite grew from 467 with V2.1 features: state durability, persisted runs/explain, whatif, watch sparkline, operator alerts, guardian toggle).
 - Covers: repay math (closed-form HF targeting), critique gate stages, preflight simulator
   contract + live helper subprocess tests, safety plugin (caps, persistence), multi-position
   config parsing, wallet resolution, listener, e2e integration, config validation,
   state durability (corrupt state.json backup, corrupt JSONL line skip), persisted
   runs/explain rendering, whatif counterfactual math, sparkline, alert payload shaping
-  (Discord/Slack/generic) + delivery.
+  (Discord/Slack/generic) + delivery, guardian toggle parity.
 - Dashboard production build (`vite build`) succeeds with the shared CLI core.
 
 ## 5b. V2.1 feature verification (2026-09-12, live against the fork)

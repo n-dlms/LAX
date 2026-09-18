@@ -1,5 +1,11 @@
 # Zero-Cost Testnet Execution Plan — Submission Tx via KeeperHub
 
+> **Build journal — 2026-09-01. Retained for context.** The current verified
+> submission transaction is documented in [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md) §1
+> (execution `9bc31ofdfca1m62b2v29t`, tx `0x9184…8bac`, workflow `l4pbmt6jdek9c3lwt0y3b`).
+> This document records the research path that produced the first live tx
+> (`0x1979…ff1a`, execution `2aylk89k…`) and the platform learnings that followed.
+
 **Goal**: produce the submission requirement "link to a transaction executed through KeeperHub"
 on a real testnet (Base Sepolia) with **$0.00 total spend**.
 **Researched**: 2026-09-01 (live web sources verified by research agent).
@@ -106,69 +112,45 @@ Public RPC (free): `https://sepolia.base.org` (official, per docs.base.org).
 - `scripts/list-chains.py` — chain-table formatter (curl | python3).
 - Base Sepolia constants in `src/config.ts` (`SEPOLIA_AAVE_POOL`, `SEPOLIA_USDC`, `SEPOLIA_WETH`).
 
-## ✅ DEPLOYED (2026-09-01)
+## Deployed (2026-09-01) — first live workflow
 
 - **Workflow `lax-liquidation-armor-sepolia` is live and enabled**:
   ID `l4pbmt6jdek9c3lwt0y3b` (org `141337c2-836f-4adb-a3c2-bce160b7f015`)
   → `https://app.keeperhub.com/api/workflows/l4pbmt6jdek9c3lwt0y3b/webhook` (webhook trigger)
 - Read path validated through `kh read --chain 84532`:
-  `getUserAccountData` on `0x8bAB...aE27` returns live data (zeros + HF=max-uint sentinel for
-  the empty position) — **Aave V3 Base Sepolia Pool address confirmed correct**.
+  `getUserAccountData` on `0x8bAB...aE27` returns live data — **Aave V3 Base Sepolia Pool address confirmed correct**.
 - Auth notes learned live:
-  - `kh` CLI stores its **own** credential — `printf '%s' "$KEY" | kh auth login --with-token`
+  - `kh` CLI stores its own credential — `printf '%s' "$KEY" | kh auth login --with-token`
     (does not read `.env`). Fresh key must be logged-in per machine.
-  - New key 401'd for ~a minute right after creation (step-up/propagation) before turning 200.
-  - ⚠️ **Webhook triggers accept only `wfb_` user-scoped keys** — `kh_` org keys are rejected
-    with 401 on `POST /api/workflows/{id}/webhook`. Create a user key in the web app for the
-    hf-listener/webhook path (docs: API → Authentication).
+  - New key 401'd for ~a minute after creation before turning 200.
+  - Webhook triggers accept only `wfb_` user-scoped keys — `kh_` org keys are rejected
+    with 401 on `POST /api/workflows/{id}/webhook`.
 
-### Remaining manual steps (in order)
-1. ~~Create a fresh API key~~ ✅ done — key in `.env`, CLI logged in
-2. Enable gas sponsorship: Settings → Billing in the web app (free on testnet)
-3. Claim faucet ETH → **send it to `0x26833b05be49036d4de306b1f4fba7713cc84de5`** — that is
-   the org's on-chain execution wallet (confirmed via `kh wallet balance`; NOT the Turnkey
-   suborg EOA `0x8Bb7...` from `~/.keeperhub/wallet.json`, which is identity-only).
-   Working faucet: https://faucet.zalalena.com/base (public address + captcha only)
-4. ~~Create a `wfb_` user key~~ ✅ done — `KEEPERHUB_WEBHOOK_KEY` in `.env`; webhook verified
-   end-to-end (trigger → read HF both green; approve blocks only on gas)
-5. Fund position via `kh execute contract-call --chain 84532` (executes from `0x2683...`):
-   wrap ETH → WETH → `supply(WETH)` → `borrow(USDC)` — needs the faucet ETH first
-6. Fire the webhook with `repay_amount_usdc` as a JSON **number** + `repay_amount_human`
-   string → capture the tx hash from `kh run status` / `transactionHashes`
-
-## ✅ MISSION ACCOMPLISHED — submission tx (2026-09-01)
+### First submission tx (2026-09-01)
 
 **Execution `2aylk89kfhkpl6x7qgtx2` → status SUCCESS, verified on-chain:**
 
 - **Approve USDC** tx `0x19790184b8b1a688bf8b2b50dcacaaf0a7b23648d0519914c8df3e433209ff1a`
-  (chain 84532, block 46255232, gasUsed 48639, receiptStatus success, verified True)
+  (chain 84532, block 46255232, gasUsed 48639, receiptStatus success)
 - Explorer: `https://sepolia.basescan.org/tx/0x19790184b8b1a688bf8b2b50dcacaaf0a7b23648d0519914c8df3e433209ff1a`
-- Workflow `lax-liquidation-armor-sepolia` (`l4pbmt6jdek9c3lwt0y3b`) now uses
-  **`aave-v3/repay` with a static 0.3 USDC amount** — the dynamic-uint256 ref blocked
-  at save-time was the last obstacle; solved by native plugin action + static amount.
-- Position onchain: ~$4.89 collateral, ~$1.00 debt, HF well above liquidation.
+- This was the first successful live tx. The current submission evidence is the
+  later execution `9bc31ofdfca1m62b2v29t` (approve `0xd15c…2e88` + repay `0x9184…8bac`,
+  0.3 USDC) documented in [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md) §1 and
+  [`../README.md`](../README.md).
 
-### Detected platform gaps (bounty/PR candidates, kept in comments in the builder)
+Detected platform gaps (documented in [`FEEDBACK.md`](FEEDBACK.md)):
 1. `aave-v3/repay` uint256 `amount` rejects `{{...}}` templates at save-time (422).
-2. `web3/write-contract` `functionArgs` array elements never resolve — "G.trim is
-   not a function" at runtime if you try.
-3. The intended dynamic-amount (agent-computed per-trigger) is now static 0.3 USDC.
+2. `web3/write-contract` `functionArgs` array elements do not resolve templates at runtime.
+3. The intended dynamic-amount (agent-computed per-trigger) is static 0.3 USDC on Sepolia.
 
-The tx above is the clickable submission proof — use it as the "link to a transaction
-executed through KeeperHub" on the DoraHacks form.
-
-### Full onchain history on 84532 from wallet `0x26833b05be...de5`
+### Full onchain history on 84532 from wallet `0x26833b05be...de5` (first funding)
 | action | tx hash |
 |---|---|
 | wrap 0.002 ETH → WETH | 0x1785bb3f...e12 |
 | approve WETH → Pool | 0xa8c0568a...938c |
 | supply 0.002 WETH | 0xc0250c19...8391 |
 | borrow 1 USDC | 0xa79f8af3...a8a3 |
-| workflow: approve 0.3 USDC → Pool | **0x19790184...ff1a** ✅ (submission) |
-
-Remaining main-track steps for the user: demo video + the "what breaks" answer (the static
-amount vs dynamic trigger is the honest limitation). Gas spent ≈ 48639 gas + funding txs, all
-from the 0.005 faucet ETH — total spend: $0.00.
+| workflow: approve 0.3 USDC → Pool | 0x19790184...ff1a (first live execution) |
 
 ### Live-learned platform gotchas (July → Sep 2026 drift)
 - **Templating syntax changed**: `{{trigger.body.X}}` is dead. Node references are now

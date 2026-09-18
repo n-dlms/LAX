@@ -4,7 +4,7 @@ Get LAX running in 5 commands. Total time: ~5 minutes.
 
 ## Prerequisites
 
-- **Node.js** >= 18 (`node --version`)
+- **Node.js** >= 20 (`node --version`)
 - **Foundry** (anvil/forge/cast) — `curl -L https://foundry.paradigm.xyz | bash`
 - **kh CLI** >= 0.10.0 — `npm install -g @keeperhub/cli`
 - **KeeperHub API key** — create at [app.keeperhub.com/settings/api](https://app.keeperhub.com/settings/api)
@@ -14,7 +14,7 @@ Get LAX running in 5 commands. Total time: ~5 minutes.
 
 ```bash
 # 1. Clone and enter
-git clone <your-repo-url> lax
+git clone https://github.com/n-dlms/LAX.git lax
 cd lax
 
 # 2. One-click setup (handles everything)
@@ -81,9 +81,6 @@ cd dashboard && npm install && node node_modules/vite/bin/vite.js --host 0.0.0.0
 The full verified-testing log (what was executed and what worked, with on-chain
 evidence) is in [VERIFIED-TESTING.md](VERIFIED-TESTING.md). The complete CLI
 reference is in [CLI-GUIDE.md](CLI-GUIDE.md).
-4. At HF ≤ 1.05, the dashboard auto-switches to MitigationView
-5. Steps animate: Approve → Repay → Verify HF restored to ≥ 1.10
-6. AuditView shows execution summary + KeeperHub link
 
 ## Troubleshooting
 
@@ -112,6 +109,7 @@ If wifi drops during the demo:
 ## Running Tests
 
 ```bash
-npm test          # 506 tests (19 files; 2 fork-live tests skip without a fork)
-npm run lint      # 0 errors (tsc --noEmit)
+npm test              # 518 tests, 21 files (2 fork-live tests skip without a fork)
+npm run lint          # tsc --noEmit (root)
+npm run lint:dashboard  # tsc --noEmit -p dashboard
 ```
