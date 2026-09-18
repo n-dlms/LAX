@@ -58,6 +58,10 @@ The repay amount is closed-form arithmetic (see `tests/repay-math.test.ts`, 35 c
 
 ## Quick start
 
+<p align="center">
+  <img src="docs/assets/LAX1.png" alt="LAX" width="420" />
+</p>
+
 ```bash
 git clone https://github.com/n-dlms/LAX.git && cd LAX && npm install
 npm run setup        # checks prerequisites, creates .env, guides KeeperHub authentication
@@ -84,10 +88,6 @@ One command to bring the demo up (idempotent, self-healing):
 ```
 
 Prerequisites: Node.js >= 20, Foundry (anvil/cast), KeeperHub API key (`kh_*` and `wfb_*`), Python 3. See [docs/SETUP.md](docs/SETUP.md) for full instructions.
-
-<p align="center">
-  <img src="docs/assets/LAX1.png" alt="LAX" width="420" />
-</p>
 
 ## What is included
 
