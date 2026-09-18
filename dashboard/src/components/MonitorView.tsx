@@ -319,13 +319,13 @@ function ValueCard({
 }) {
   const semanticColor = semantic === "positive" ? "text-green" : semantic === "negative" ? "text-red" : semantic === "warning" ? "text-yellow" : "text-primary";
   return (
-    <div className={`bg-surface border border-bordercol p-4 flex-1 min-w-[140px] animate-slide-up ${loading ? "opacity-40" : ""}`}>
-      <div className="text-xs text-secondary mb-1">{label}</div>
-      <div className={`text-2xl leading-none ${semanticColor} truncate font-mono`}>
+    <div className={`bg-surface border border-bordercol p-3 sm:p-4 flex-1 min-w-0 basis-[130px] sm:basis-[140px] animate-slide-up overflow-hidden ${loading ? "opacity-40" : ""}`}>
+      <div className="text-xs text-secondary mb-1 truncate">{label}</div>
+      <div className={`text-xl sm:text-2xl leading-none ${semanticColor} truncate overflow-hidden min-w-0 font-mono`}>
         {loading ? "----" : fmt$(value)}
       </div>
       {subtitle != null && (
-        <div className="text-[10px] text-secondary mt-1">{subtitle}</div>
+        <div className="text-[10px] text-secondary mt-1 truncate">{subtitle}</div>
       )}
     </div>
   );

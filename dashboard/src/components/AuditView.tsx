@@ -66,9 +66,9 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div className="bg-surface border border-bordercol p-4 flex-1 min-w-[140px] text-center animate-scale-in overflow-hidden">
-      <div className="text-xs text-secondary mb-1">{label}</div>
-      <div className={`font-projector-value-sm leading-none ${color}`}>{value}</div>
+    <div className="bg-surface border border-bordercol p-3 sm:p-4 flex-1 min-w-0 basis-[120px] sm:basis-[140px] text-center animate-scale-in overflow-hidden">
+      <div className="text-xs text-secondary mb-1 truncate">{label}</div>
+      <div className={`font-projector-value-sm leading-none ${color} truncate overflow-hidden min-w-0`}>{value}</div>
     </div>
   );
 }
