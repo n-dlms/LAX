@@ -1,6 +1,6 @@
 # KeeperHub SDK + Platform Feedback
 
-**Project**: LAX — Liquidation Autopilot
+**Project**: LAX. Liquidation Autopilot
 **Submitted for**: Onboarding DX Bounty
 **Integration depth**: MCP + first-party wallet + Aave V3 plugin + webhook workflow
 **Build time**: ~3 weeks (Phase 0-3)
@@ -11,8 +11,8 @@
 
 We built LAX on KeeperHub for the Agents Onchain hackathon. The integration surface was deep: MCP remote server, `@keeperhub/wallet` v0.1.15, Aave V3 plugin, webhook-triggered workflows, and gas sponsorship. Most things worked. The friction points below fall into two categories:
 
-1. **Documentation gaps** (6 items) — features that exist but aren't documented clearly
-2. **API surprises** (3 items) — endpoints that behave differently than expected
+1. **Documentation gaps** (6 items), features that exist but aren't documented clearly
+2. **API surprises** (3 items), endpoints that behave differently than expected
 
 No SDK-breaking bugs were found. Every friction below has a known workaround. The purpose of this report is to make the next developer's path faster.
 
@@ -89,11 +89,9 @@ tokenConfig: JSON.stringify({ mode: 'custom', customToken: { address: '0x...', s
 
 **Update (2026-09-06, event: The Agent Economy)**: the endpoint format is confirmed working
 (`POST /api/workflows/{id}/webhook`), and the key-type requirement is now well-documented
-by the API itself: org keys (`kh_*`) are rejected with a precise, actionable error —
-`{"error":"wrong_key_type", "expected":"wfb_*", "hint":"Generate a webhook key from
+by the API itself: org keys (`kh_*`) are rejected with a precise, actionable error, `{"error":"wrong_key_type", "expected":"wfb_*", "hint":"Generate a webhook key from
 Settings > Developer > API keys > Webhook keys"}`. Resolved end-to-end during the verified
-live fire (see `docs/VERIFIED-TESTING.md` §1); the endpoint needs no further workaround —
-only the webhook-key documentation suggestion still stands.
+live fire (see `docs/VERIFIED-TESTING.md` §1); the endpoint needs no further workaround, only the webhook-key documentation suggestion still stands.
 
 ---
 
@@ -157,7 +155,7 @@ only the webhook-key documentation suggestion still stands.
 ### M4: No workflow versioning
 
 **Where**: KeeperHub workflow management
-**Issue**: Editing a live workflow is risky — there is no versioning or draft/publish model. A single URL update can take down production. The GitHub issue `keeperhub/cli#59` requests this feature.
+**Issue**: Editing a live workflow is risky, there is no versioning or draft/publish model. A single URL update can take down production. The GitHub issue `keeperhub/cli#59` requests this feature.
 **Suggested fix**: Versioned workflows with the ability to preview a new version before publishing. See existing community request at https://github.com/KeeperHub/cli/issues/59.
 
 ---
@@ -175,7 +173,7 @@ only the webhook-key documentation suggestion still stands.
 ### L2: `wallet.json` has no recovery mechanism
 
 **Where**: `@keeperhub/wallet` first-party wallet
-**Issue**: If `wallet.json` is lost, the wallet is unrecoverable. KeeperHub controls the Turnkey root but cannot restore a specific wallet's `wallet.json`. Per KeeperHub docs: "What happens if I lose wallet.json" — the answer is effectively "create a new wallet."
+**Issue**: If `wallet.json` is lost, the wallet is unrecoverable. KeeperHub controls the Turnkey root but cannot restore a specific wallet's `wallet.json`. Per KeeperHub docs: "What happens if I lose wallet.json", the answer is effectively "create a new wallet."
 **Suggested fix**: Add a `keeperhub wallet export --seed` command that outputs a BIP-39 mnemonic or equivalent seed phrase. Or at minimum document a recommended backup strategy in the wallet setup guide.
 
 ---

@@ -16,7 +16,7 @@ Ship one working agent that monitors an Aave V3 health factor and executes a mit
 
 ### Tech
 - Multi-position, multi-network monitoring via `lax.config.json`
-  (borrower + rpc + pool + usdc + workflow per position) — shipped in V2,
+  (borrower + rpc + pool + usdc + workflow per position), shipped in V2,
   extensible to any Aave V3 deployment
 - OpenCode agent framework with `lax-guardian` agent
 - KeeperHub MCP remote HTTP transport (aggregate + per-workflow servers)
@@ -26,13 +26,13 @@ Ship one working agent that monitors an Aave V3 health factor and executes a mit
 - Base Sepolia for live testnet, Anvil fork of Base mainnet for demo
 - Gas sponsorship: org-level gas credits (free on testnet, confirmed no event tag
   Sep 10; direct-wallet sender via public mempool) + wallet-pays-gas
-  fallback on the Anvil fork — see `docs/zero-cost-testnet-plan.md`
+  fallback on the Anvil fork, see `docs/zero-cost-testnet-plan.md`
 - TypeScript for all custom glue code
 
 ## Out Of Scope
 
 - Custom smart contracts (`contracts/MockOracle.sol` is fork-demo scaffolding only, never deployed live)
-- Multiple DeFi protocols (Aave V3 only — the named live integration: Base Pool
+- Multiple DeFi protocols (Aave V3 only, the named live integration: Base Pool
   `0xA238Dd80C259a72e81d7e4664a9801593F98d1c5`, Base Sepolia Pool
   `0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27`)
 - Mobile app or web frontend beyond the single-page demo dashboard

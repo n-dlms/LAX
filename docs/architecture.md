@@ -1,6 +1,6 @@
 # LAX Architecture
 
-> **Historical document — 2026-07-05 Phase 2 sprint record.** Retained for context.
+> **Historical document, 2026-07-05 Phase 2 sprint record.** Retained for context.
 > The authoritative current-state references are [`../README.md`](../README.md),
 > [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md), [`SETUP.md`](SETUP.md), and
 > [`CLI-GUIDE.md`](CLI-GUIDE.md). Key changes since this was written:
@@ -9,27 +9,27 @@
 > (not `src/dashboard/`); gas is org-level credits with no event tag (confirmed
 > Discord Sep 10); audit links are `app.keeperhub.com/workflows/<id>` (no
 > per-execution route); Sepolia workflow repays static 0.3 USDC (platform
-> rejects dynamic uint256 refs — daemon computes exact amount and sends it in
+> rejects dynamic uint256 refs, daemon computes exact amount and sends it in
 > payload); Anvil fork is `127.0.0.1:18545` (not 8545); thresholds are 1.05
 > trigger / 1.10 target per `src/config.ts`.
 
 **Date**: 2026-07-05 (historical)
-**Phase**: 2 (Architecture Sprint — archived)
+**Phase**: 2 (Architecture Sprint, archived)
 **Status**: Superseded by current codebase; see README for current design
 
 ---
 
 ## 1. Project Boundaries
 
-LAX is **not one process** — it is a coordinated set of processes that boot together on the demo laptop and together produce the 8-beat demo. There is no server, no CI/CD, no deployment. The "architecture" is the demo laptop's tmux session.
+LAX is **not one process**, it is a coordinated set of processes that boot together on the demo laptop and together produce the 8-beat demo. There is no server, no CI/CD, no deployment. The "architecture" is the demo laptop's tmux session.
 
 ### 1.1 Process Inventory (6 long-running processes, 4 scripts)
 
 | Process | Lifecycle | Port / I/O | Responsibility |
 |---------|-----------|------------|----------------|
 | **Anvil fork** | Demo-long | `127.0.0.1:18545` (HTTP RPC) | Holds the Base-mainnet-forked EVM state. Receives `anvil_setStorageAt` oracle overrides. Accepts `eth_sendRawTransaction` from `@keeperhub/wallet`. |
-| **Autopilot daemon** (`src/autopilot/daemon.ts`) — current path | Demo-long, daemon | Polls `getUserAccountData` every 2s per position via `lax.config.json` | Replaces the legacy `scripts/hf-listener.ts` one-shot listener. When HF <= threshold, runs the 4-stage gate and POSTs HMAC-signed webhook to KeeperHub. |
-| **HF listener** (`scripts/hf-listener.ts`) — legacy | Legacy / one-shot | Polls Anvil RPC, POSTs to KeeperHub webhook | Retained for reference. Current demo uses the autopilot daemon. |
+| **Autopilot daemon** (`src/autopilot/daemon.ts`): current path | Demo-long, daemon | Polls `getUserAccountData` every 2s per position via `lax.config.json` | Replaces the legacy `scripts/hf-listener.ts` one-shot listener. When HF <= threshold, runs the 4-stage gate and POSTs HMAC-signed webhook to KeeperHub. |
+| **HF listener** (`scripts/hf-listener.ts`): legacy | Legacy / one-shot | Polls Anvil RPC, POSTs to KeeperHub webhook | Retained for reference. Current demo uses the autopilot daemon. |
 | **OpenCode agent** | Started by demo operator on `lax` command | Stdin/stdout, MCP servers configured in `opencode.jsonc` | Control loop for agentic actions. Production mitigation path is webhook → KeeperHub workflow (no LLM in critical trigger path). |
 | **KeeperHub MCP server** (aggregate + per-workflow) | Hosted by KeeperHub | `https://app.keeperhub.com/mcp` and `/mcp/w/lax-liquidation-armor` over HTTP/SSE | Remote service. Receives MCP calls, dispatches to KeeperHub's executor, returns results. |
 | **KeeperHub executor** | Hosted by KeeperHub | Internal to KeeperHub | Server-side engine that fires the workflow, signs via Turnkey, broadcasts the tx to the workflow's configured RPC (fork `127.0.0.1:18545` or `https://sepolia.base.org`). |
@@ -97,18 +97,18 @@ lax/
 
 ### 1.4 What Does NOT Exist in LAX
 
-- **No backend server** — dashboard talks to MCP via HTTP, no custom REST API
-- **No database** — KeeperHub `get_execution_logs` is the audit trail per SCOPE.md:33
-- **No auth** — KeeperHub API key + wallet `wallet.json` (per SCOPE.md:34)
-- **No CI/CD** — out of scope (SCOPE.md:32)
-- **No containerization** — runs directly on the demo laptop with Foundry + Node 20+
-- **No hosted deploy** — the demo laptop IS the deployment
+- **No backend server**, dashboard talks to MCP via HTTP, no custom REST API
+- **No database**. KeeperHub `get_execution_logs` is the audit trail per SCOPE.md:33
+- **No auth**. KeeperHub API key + wallet `wallet.json` (per SCOPE.md:34)
+- **No CI/CD**, out of scope (SCOPE.md:32)
+- **No containerization**, runs directly on the demo laptop with Foundry + Node 20+
+- **No hosted deploy**, the demo laptop IS the deployment
 
 ---
 
-## 2. Data Model (3 entities — PLAYBOOK rule: 3-5 max)
+## 2. Data Model (3 entities: PLAYBOOK rule: 3-5 max)
 
-LAX does not own a database. Per SCOPE.md:33, KeeperHub's audit trail IS the record. These three TypeScript types describe what LAX *reads* and *displays* — they are not persisted by us; they are projection views over KeeperHub's `get_execution_logs` response.
+LAX does not own a database. Per SCOPE.md:33, KeeperHub's audit trail IS the record. These three TypeScript types describe what LAX *reads* and *displays*, they are not persisted by us; they are projection views over KeeperHub's `get_execution_logs` response.
 
 ```ts
 // src/types.ts
@@ -165,9 +165,9 @@ interface WorkflowExecution {
 ```
 
 **Why only 3 entities**: Per PLAYBOOK:30 the cap is 3-5. We have exactly 3:
-- `UserPosition` — what we monitor (polygonal Aave state)
-- `MitigationEvent` — what we do (one approve→repay cycle = one event)
-- `WorkflowExecution` — what KeeperHub tells us happened (audit trail source of truth)
+- `UserPosition`, what we monitor (polygonal Aave state)
+- `MitigationEvent`, what we do (one approve→repay cycle = one event)
+- `WorkflowExecution`, what KeeperHub tells us happened (audit trail source of truth)
 
 Every screen in the dashboard is built from these 3 types. No `User` entity (no auth). No `Wallet` entity (we use `@keeperhub/wallet`'s `wallet.json`). No `Transaction` entity (that's `WorkflowExecution.steps[].output.txHash`).
 
@@ -179,7 +179,7 @@ Every screen in the dashboard is built from these 3 types. No `User` entity (no 
 | `getUserAccountData.totalDebtBase` | 18 | Aave V3 IPool | UserPosition.totalDebtBase |
 | `getUserAccountData.healthFactor` | 18 | Aave V3 IPool | UserPosition.healthFactor |
 | USDC `transfer` / `approve` amount | 6 | USDC contract on Base | MitigationEvent.exactRepayAmount |
-| WETH `transfer` / `approve` amount | 18 | WETH contract on Base | (Supply path only — not the demo path) |
+| WETH `transfer` / `approve` amount | 18 | WETH contract on Base | (Supply path only: not the demo path) |
 | `gasUsed` from get_execution_logs | integer | KeeperHub audit | WorkflowExecution.steps[].output.gasUsed |
 
 Closed-form repay math:
@@ -213,11 +213,11 @@ This is the **only** custom math in LAX. Everything else is calls. Tested by `te
 
 ---
 
-## 3. Component Architecture (6 components — PLAYBOOK rule: keep it simple)
+## 3. Component Architecture (6 components: PLAYBOOK rule: keep it simple)
 
 ### 3.1 The LAX State Machine
 
-LAX as a whole is a **state machine** — not request/response, not pub/sub. The state transitions map directly to the 8-beat demo flow:
+LAX as a whole is a **state machine**, not request/response, not pub/sub. The state transitions map directly to the 8-beat demo flow:
 
 ```
 BOOT → IDLE → WATCHING → TRIGGERED → APPROVING → REPAYING → RESOLVED → (back to WATCHING)
@@ -244,7 +244,7 @@ The core interaction is:
 HF Listener → HTTP POST → KeeperHub Webhook → KeeperHub Executor → Anvil RPC → Tx Hash → get_execution_logs → Dashboard
 ```
 
-There is **no** LLM inference in the critical path between HF dropping and the approve tx firing. The LLM (NVIDIA NIM) only enters during the workflow execution phase (approve → repay), where the Aave V3 plugin needs natural-language-to-tool-selection. The HF listener bypasses the LLM entirely — it's a deterministic TypeScript daemon.
+There is **no** LLM inference in the critical path between HF dropping and the approve tx firing. The LLM (NVIDIA NIM) only enters during the workflow execution phase (approve → repay), where the Aave V3 plugin needs natural-language-to-tool-selection. The HF listener bypasses the LLM entirely, it's a deterministic TypeScript daemon.
 
 This is intentional per the KeeperHub observability research: webhook trigger latency is ~0.5-1.2s vs. agent-driven polling which adds LLM inference time (+1-3s). For the critical "sub-3-second response" claim, we cannot afford the LLM's round trip in the trigger path.
 
@@ -330,11 +330,11 @@ echo "LAX ready. Run 'opencode' in a new terminal to start the agent."
 echo "Run './scripts/drop-oracle-price.sh' to trigger Beat 4."
 ```
 
-The demo operator starts the agent (`opencode` in a separate terminal) only after the Anvil fork + USDC wallet seeding is confirmed — visual checkpoint before the 8-beat demo begins.
+The demo operator starts the agent (`opencode` in a separate terminal) only after the Anvil fork + USDC wallet seeding is confirmed, visual checkpoint before the 8-beat demo begins.
 
 ---
 
-## 4. UI Flow (3 screens — PLAYBOOK rule: 3-5 max)
+## 4. UI Flow (3 screens: PLAYBOOK rule: 3-5 max)
 
 ### Screen 1: Monitoring Dashboard (Beats 1-3)
 
@@ -408,16 +408,16 @@ Each step shows: contract, amount, tx hash, gas cost. If a step failed and auto-
 └──────────────────────────────────────────────────────────────┘
 ```
 
-The footer persists across all 3 screens. Screen 3 is shown after the `RESOLVED` status — the demo operator clicks the KeeperHub link and says "Click this — it's the real KeeperHub execution page."
+The footer persists across all 3 screens. Screen 3 is shown after the `RESOLVED` status, the demo operator clicks the KeeperHub link and says "Click this, it's the real KeeperHub execution page."
 
-### Edge Cases (per PLAYBOOK:55 — error states to handle in Phase 4)
+### Edge Cases (per PLAYBOOK:55: error states to handle in Phase 4)
 
 | Edge Case | Screen | Visual |
 |-----------|--------|--------|
 | HF listener process dies | Screen 1 | "⚠ HF Listener Disconnected" banner. Falls back to agent-driven polling (5s interval). |
 | Gas sponsorship returns error but wallet-pays succeeds | Screen 2 | Step 1 or 2 shows "ⓘ Gas sponsorship unavailable (fork). Paid by wallet: $0.0004" |
 | Wallet signing timeout (>10s) | Screen 2 | Step shows "⌛ Waiting for Turnkey signature..." with progressive timeout bar. If >30s, mark as failed. |
-| Mitigation fails entirely (repay reverts) | Screen 2 | Step 2 shows red ❌ with the Aave revert reason. "Manual intervention required." (Edge case designed to not happen on the fork — all tests pass before demo.) |
+| Mitigation fails entirely (repay reverts) | Screen 2 | Step 2 shows red ❌ with the Aave revert reason. "Manual intervention required." (Edge case designed to not happen on the fork: all tests pass before demo.) |
 | Dashboard cold start (no HF data yet) | Screen 1 | "❖ Connecting to Anvil fork..." skeleton spinner. |
 | No mitigations ever triggered (demo never reaches 1.05) | Screen 1 | "All clear. HF = 1.20" in green indefinitely. Demo operator must fire `drop-oracle-price.sh`. |
 
@@ -435,11 +435,11 @@ The footer persists across all 3 screens. Screen 3 is shown after the `RESOLVED`
 | Chainlink WETH/USD Aggregator (Base) | `WETH_USD_AGGREGATOR = "0x9dA00D23465282005DB222a441a663eE7B9dfCc8"` | `src/config.ts:27`. |
 | Pinned fork block number | `FORK_BLOCK = 48236883` | So the fork boots identically (`src/config.ts:55`). |
 | Spend caps | `BLOCK_THRESHOLD_USD = 10.00`, `DAILY_LIMIT_USD = 5.00` | `src/config.ts:49-50`; demo run sizes to $50/$100 for that execution. |
-| Gas sponsorship | Org-level credits (no event tag — Discord Sep 10), testnet uncharged; direct-wallet sender via public mempool; wallet-pays fallback on fork |
+| Gas sponsorship | Org-level credits (no event tag: Discord Sep 10), testnet uncharged; direct-wallet sender via public mempool; wallet-pays fallback on fork |
 
 **Everything else is real**: MCP calls reach the actual KeeperHub server. Wallet signing goes through Turnkey custody. The Anvil fork holds real Base mainnet state (pinned at the fork block). The `get_execution_logs` response is the actual KeeperHub audit trail.
 
-**Not hardcoded**: execution IDs, tx hashes, gas prices, simulation results, oracle prices before the override — all real RPC outputs from the fork and the KeeperHub executor.
+**Not hardcoded**: execution IDs, tx hashes, gas prices, simulation results, oracle prices before the override, all real RPC outputs from the fork and the KeeperHub executor.
 
 ---
 
@@ -551,8 +551,8 @@ These rules override personal preference or convenience during the build. Violat
 
 ---
 
-## 9. Open Questions — Resolved 2026-07-05
+## 9. Open Questions: Resolved 2026-07-05
 
-- **`anvil_setStorageAt` on the Chainlink Aggregator**: Slot 0 is `latestAnswer` (int256) per the Chainlink `AggregatorV3` contract storage layout. Confirmed by multiple independent decompilations of the Base Aggregator contract. Aave's `PoolAddressesProvider` → `PriceOracle` → `AggregatorProxy` → `AggregatorV3` chain does NOT cache the price between reads — each `getAssetPrice()` call goes to `latestAnswer()`, which reads slot 0. So the storage override propagates directly. Flagged for Phase 3 day 1 testing as the highest-risk item per ADR-007.
+- **`anvil_setStorageAt` on the Chainlink Aggregator**: Slot 0 is `latestAnswer` (int256) per the Chainlink `AggregatorV3` contract storage layout. Confirmed by multiple independent decompilations of the Base Aggregator contract. Aave's `PoolAddressesProvider` → `PriceOracle` → `AggregatorProxy` → `AggregatorV3` chain does NOT cache the price between reads, each `getAssetPrice()` call goes to `latestAnswer()`, which reads slot 0. So the storage override propagates directly. Flagged for Phase 3 day 1 testing as the highest-risk item per ADR-007.
 - **Block time for the Anvil fork**: `--block-time 1` gives 1s blocks during the demo. This is faster than Base mainnet's ~2s but acceptable because the fork is a local simulation. Faster blocks = tighter demo timing. The judge cannot distinguish.
 - **Dependency versions**: We pin OpenCode to the latest stable release at Phase 3 kickoff. We pin NIM to the model ID confirmed in ADR-001 (`meta/llama-3.3-70b-instruct`). Everything else floats within `^` semver ranges.

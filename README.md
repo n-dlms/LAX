@@ -1,6 +1,6 @@
 <div align="center">
 
-# LAX — Liquidation Autopilot eXtended
+# LAX: Liquidation Autopilot eXtended
 
 Proactive Aave V3 liquidation defense built on [KeeperHub](https://app.keeperhub.com). LAX monitors health factor and restores collateralization before liquidation becomes profitable.
 
@@ -12,7 +12,7 @@ Aave V3 positions become liquidatable when health factor drops below 1.0. Oracle
 [![node](https://img.shields.io/badge/node-%3E%3D20-339933)](https://nodejs.org/)
 [![network](https://img.shields.io/badge/Aave%20V3-Base%20%2B%20Base%20Sepolia-0052FF)](https://app.aave.com)
 
-DoraHacks — KeeperHub: The Agent Economy · Track: Best Integration into a Live Project · Solo build
+DoraHacks - KeeperHub: The Agent Economy · Track: Best Integration into a Live Project · Solo build
 
 </div>
 
@@ -98,7 +98,7 @@ Prerequisites: Node.js >= 20, Foundry (anvil/cast), KeeperHub API key (`kh_*` an
 | AI agent | `lax-guardian` via OpenCode (system prompt, skills, runbook in [agent/](agent/)) |
 | Evidence | Execution log in [docs/VERIFIED-TESTING.md](docs/VERIFIED-TESTING.md) |
 
-## Verified on-chain — Base Sepolia
+## Verified on-chain: Base Sepolia
 
 Two paths prove different properties:
 
@@ -114,7 +114,7 @@ Verified run (2026-09-06):
 | Artifact | Link |
 |----------|------|
 | Workflow and executions | https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b (requires KeeperHub account; execution `9bc31ofdfca1m62b2v29t` listed on the runs page) |
-| Repay tx — debt 0.7002 to 0.4002 USDC (0.3 USDC) | https://sepolia.basescan.org/tx/0x918441fcd4d2071733afc139ed0b5c29cba34ddeefc2ca1583499b10827c8bac |
+| Repay tx: debt 0.7002 to 0.4002 USDC (0.3 USDC) | https://sepolia.basescan.org/tx/0x918441fcd4d2071733afc139ed0b5c29cba34ddeefc2ca1583499b10827c8bac |
 | Approve tx | https://sepolia.basescan.org/tx/0xd15cc2c844ea4a0dd50e0878d6819dcff116f48e98f7e2489e6d96679fca2e88 |
 
 Reproduce and verify before/after debt and health factor via `cast call` against `https://sepolia.base.org` as documented in [docs/VERIFIED-TESTING.md](docs/VERIFIED-TESTING.md).
@@ -148,9 +148,9 @@ Tested on Base mainnet fork and Base Sepolia. The same configuration pattern app
 
 LAX is an AI agent that decides when to act; execution remains deterministic:
 
-- [`agent/SYSTEM_PROMPT.md`](agent/SYSTEM_PROMPT.md) — standing orders and constraints
-- [`agent/skills/`](agent/skills/) — procedures: monitor HF, trigger mitigation, fund position
-- [`agent/RUNBOOK.md`](agent/RUNBOOK.md) — demo sequence
+- [`agent/SYSTEM_PROMPT.md`](agent/SYSTEM_PROMPT.md), standing orders and constraints
+- [`agent/skills/`](agent/skills/), procedures: monitor HF, trigger mitigation, fund position
+- [`agent/RUNBOOK.md`](agent/RUNBOOK.md), demo sequence
 
 Configured in [`opencode.jsonc`](opencode.jsonc) as the `lax-guardian` agent.
 
@@ -169,25 +169,25 @@ Configured in [`opencode.jsonc`](opencode.jsonc) as the `lax-guardian` agent.
 | Path | Contents |
 |------|----------|
 | `bin/lax.ts` | CLI entry point (REPL, one-shot, piped) |
-| `src/cli/` | Command core — parser, registry, executor, rendering (shared with dashboard) |
+| `src/cli/` | Command core: parser, registry, executor, rendering (shared with dashboard) |
 | `src/autopilot/` | Daemon: monitor loop, mitigation gate, persisted state |
 | `src/keeperhub.ts` | Webhook signing and run links |
 | `src/config.ts` | Addresses, thresholds, caps |
-| `dashboard/` | Web terminal — same command core in the browser |
+| `dashboard/` | Web terminal: same command core in the browser |
 | `agent/` | AI layer: system prompt, skills, runbook |
 | `scripts/` | Demo lifecycle: `setup.sh`, `demo-up.sh`, `fire-sepolia.sh`, fork helpers |
 | `bootstrap/` | Minimal starter template (fork demo only) |
 | `contracts/MockOracle.sol` | Fork-only oracle helper (not deployed live) |
 | `api/` | Edge proxy example (HMAC, browser never holds API key) |
-| `docs/` | Curated documentation — start at [`docs/README.md`](docs/README.md) |
-| `tests/` | Vitest suite — 21 files, 518 tests |
+| `docs/` | Curated documentation: start at [`docs/README.md`](docs/README.md) |
+| `tests/` | Vitest suite: 21 files, 518 tests |
 
 ## Documentation
 
 | Document | Contents |
 |----------|----------|
 | [`docs/SETUP.md`](docs/SETUP.md) | Setup from clone to running demo |
-| [`docs/CLI-GUIDE.md`](docs/CLI-GUIDE.md) | CLI manual — commands, flags, modes |
+| [`docs/CLI-GUIDE.md`](docs/CLI-GUIDE.md) | CLI manual: commands, flags, modes |
 | [`docs/CLI-REFERENCE.md`](docs/CLI-REFERENCE.md) | Per-command reference with examples |
 | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | DeFi terms with worked examples |
 | [`docs/architecture.md`](docs/architecture.md) | Architecture: daemon, gate, webhook, dashboard |
@@ -228,14 +228,14 @@ See [docs/VERIFIED-TESTING.md](docs/VERIFIED-TESTING.md) for live-fire evidence,
 1. **Sepolia workflow amount:** the `aave-v3/repay` amount field rejects template references at save time, and `web3/write-contract` args do not resolve templates at runtime. The daemon computes the exact repay amount at fire time and sends it in the webhook payload, but the deployed Sepolia workflow replays a static 0.3 USDC. This is demonstrated as: fork shows the exact-amount defense, Sepolia shows live value movement.
 2. **`--local` on-chain actions** use an Anvil unlocked account and are fork-only; public networks require the KeeperHub workflow path.
 
-## Bounty track — Best KeeperHub Feature (separate submission)
+## Bounty track: Best KeeperHub Feature (separate submission)
 
 Feedback and workarounds in [`docs/FEEDBACK.md`](docs/FEEDBACK.md). Merged contribution:
 
-- **PR [#2268](https://github.com/keeperhub/keeperhub/pull/2268) — merged:** gas-sponsorship fallback and `insufficient_balance` documentation.
+- **PR [#2268](https://github.com/keeperhub/keeperhub/pull/2268), merged:** gas-sponsorship fallback and `insufficient_balance` documentation.
 
 Additional candidates documented in `docs/FEEDBACK.md` (tokenConfig JSON handling, `onBehalfOf` documentation, `autoApprove` option, error code reference).
 
 ## License
 
-[MIT](LICENSE) — 2026 Ntokozo Dlamini
+[MIT](LICENSE), 2026 Ntokozo Dlamini

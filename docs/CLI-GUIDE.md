@@ -1,11 +1,11 @@
-# LAX CLI — The Complete User Guide
+# LAX CLI: The Complete User Guide
 
-Everything you need to run the Liquidation CLI confidently — from your first
+Everything you need to run the Liquidation CLI confidently, from your first
 command to scripting the autopilot in production. No prior DeFi experience
 assumed; every term is explained the first time it appears.
 
 Companion documents: [`GLOSSARY.md`](GLOSSARY.md) (concepts from zero) and
-[`CLI-REFERENCE.md`](CLI-REFERENCE.md) (deep per-command reference — every command with purpose, examples, and gotchas).
+[`CLI-REFERENCE.md`](CLI-REFERENCE.md) (deep per-command reference, every command with purpose, examples, and gotchas).
 
 ---
 
@@ -32,7 +32,7 @@ Companion documents: [`GLOSSARY.md`](GLOSSARY.md) (concepts from zero) and
 ## 1. LAX in 60 seconds
 
 LAX is a guardian for Aave lending positions. It watches your **health factor**
-continuously and repairs the position *before* it can be liquidated — instead
+continuously and repairs the position *before* it can be liquidated, instead
 of racing bots after the fact.
 
 Two things make it trustworthy:
@@ -55,16 +55,16 @@ and the background daemon that defends positions around the clock.
 | **Debt** | What you borrowed (e.g. $480 of USDC) |
 | **Health factor (HF)** | The ratio of collateral to debt. High = safe, low = danger. Falls when the price of your collateral drops |
 | **Liquidation** | If HF reaches **1.0**, anyone can repay your debt and take your collateral at a discount. That's the emergency LAX prevents |
-| **Trigger threshold** | The HF where LAX acts — default **1.05**, safely above liquidation |
-| **Target HF** | Where LAX repairs you to — default **1.10** |
+| **Trigger threshold** | The HF where LAX acts: default **1.05**, safely above liquidation |
+| **Target HF** | Where LAX repairs you to: default **1.10** |
 | **Mitigation** | The repair itself: repaying just enough USDC debt to restore your HF |
 | **The gate** | Four independent safety checks that must all pass before anything fires |
 | **Dry-run** | Executing the full pipeline *except* the part that moves money |
 
 > 📚 **New to DeFi lending entirely?** [`GLOSSARY.md`](GLOSSARY.md) explains
-> every concept from zero — what WETH is, why HF falls, how bots liquidate in
+> every concept from zero, what WETH is, why HF falls, how bots liquidate in
 > the same block as a price move, and why defending early is three times
-> cheaper — with worked numbers for each.
+> cheaper, with worked numbers for each.
 
 ---
 
@@ -74,9 +74,9 @@ and the background daemon that defends positions around the clock.
 
 - **Node.js 20+** and npm
 - **A running node to talk to.** For the demo that's a local fork of Base
-  mainnet — one command starts it (below). LAX also connects to any Aave V3
+  mainnet, one command starts it (below). LAX also connects to any Aave V3
   chain, live or local.
-- **KeeperHub keys** (optional — only needed for firing the KeeperHub workflow
+- **KeeperHub keys** (optional, only needed for firing the KeeperHub workflow
   and the autopilot daemon, not for reading your position)
 
 ### Install and boot the demo
@@ -89,7 +89,7 @@ cp .env.example .env        # then edit .env with your keys (see §12)
 npm run lax                 # opens the LAX terminal
 ```
 
-`demo-up.sh` is idempotent and self-healing — run it again any time something
+`demo-up.sh` is idempotent and self-healing, run it again any time something
 looks wrong. It is safe to re-run.
 
 ### Your first 30 seconds in the terminal
@@ -106,7 +106,7 @@ If `status` shows a health factor and a gauge, everything works.
 
 ## 4. Three ways to run it
 
-**1. Interactive terminal** — what most people use:
+**1. Interactive terminal**, what most people use:
 
 ```bash
 npm run lax
@@ -114,27 +114,27 @@ npm run lax
 
 You get command history (↑/↓), tab completion, and `help` at any time.
 
-**2. One-shot commands** — for quick checks and shell scripts:
+**2. One-shot commands**, for quick checks and shell scripts:
 
 ```bash
 npm run lax -- status
 npm run lax -- hf
 ```
 
-**3. Piped scripting** — feed a whole session through stdin:
+**3. Piped scripting**, feed a whole session through stdin:
 
 ```bash
 printf 'status\nruns\nexit\n' | npm run lax
 ```
 
-> 💡 **Tip** — exit code **0** means success (including healthy checks),
+> 💡 **Tip**, exit code **0** means success (including healthy checks),
 > **1** means something failed. Safe to chain in CI.
 
 ---
 
 ## 5. The fastest tour: `lax demo`
 
-One command plays the whole story — no setup, nothing to click:
+One command plays the whole story, no setup, nothing to click:
 
 ```bash
 lax demo            # dry-run by default: nothing moves
@@ -143,12 +143,12 @@ lax demo --yes      # the same story, with the repay executed for real on the fo
 
 What you'll see, step by step:
 
-1. **Your position, healthy** — the gauge shows where you stand
-2. **A market crash** — the WETH oracle price drops 25%
-3. **Your HF falls** — LAX polls and watches it drop
-4. **The gate decides** — all four safety stages print their verdicts
-5. **The repair executes** — approve + repay on-chain (with `--yes`)
-6. **Verification** — HF restored above target, before any liquidation
+1. **Your position, healthy**, the gauge shows where you stand
+2. **A market crash**, the WETH oracle price drops 25%
+3. **Your HF falls**. LAX polls and watches it drop
+4. **The gate decides**, all four safety stages print their verdicts
+5. **The repair executes**, approve + repay on-chain (with `--yes`)
+6. **Verification**. HF restored above target, before any liquidation
 
 Real output from a verified run:
 
@@ -175,10 +175,10 @@ HF 1.0894  SAFE — LAX ARMED ZONE
 ✔ HF restored: 1.0199 → 1.1009 (target 1.1) — before any liquidation.
 ```
 
-> 💡 **Tip** — run `lax demo` as many times as you like. If a previous run left
+> 💡 **Tip**, run `lax demo` as many times as you like. If a previous run left
 > the fork crashed, the demo notices and *heals the scenario first*.
 >
-> ⚠️ **Note** — `--yes` moves funds on the **local fork only** (worth nothing).
+> ⚠️ **Note**, `--yes` moves funds on the **local fork only** (worth nothing).
 > Add `--webhook` to also fire the KeeperHub workflow for a real audit trail.
 
 ---
@@ -214,7 +214,7 @@ HF 1.0484  LAX TRIGGER ZONE
 ```
 
 `lax watch` redraws every 2 seconds (`--interval 1` to speed it up) and draws a
-sparkline so you can *see* the trend — falling bars mean falling HF. `Ctrl-C`
+sparkline so you can *see* the trend, falling bars mean falling HF. `Ctrl-C`
 stops it cleanly. In piped (non-interactive) runs, it prints one sample and
 exits so scripts never hang.
 
@@ -238,7 +238,7 @@ Defense cost — restore HF to 1.1:
   Comparator:   recommends REPAY (alternative SUPPLY: $161.25)
 ```
 
-Read that "defending early saves" line twice — it is LAX's whole reason to
+Read that "defending early saves" line twice, it is LAX's whole reason to
 exist in one number. Options:
 
 | Flag | Meaning |
@@ -281,7 +281,7 @@ LAX_DAILY_LIMIT_USD=500       # max per 24h window (persisted across restarts)
 Conventions: `$` marks your shell, `lax>` marks the interactive terminal.
 Bracketed parts are optional. Commands marked **Confirm** need `--confirm`.
 
-### Read — see where you stand
+### Read: see where you stand
 
 | Command | What it does |
 |---------|--------------|
@@ -294,15 +294,15 @@ Bracketed parts are optional. Commands marked **Confirm** need `--confirm`.
 | `lax block` · `lax reserves` · `lax pool` | Chain head, Aave reserve list, pool addresses |
 | `lax config` · `lax whoami` | LAX's own parameters; the resolved borrower/wallet |
 | `lax keeper` | KeeperHub connectivity and workflow binding |
-| `lax watch [--interval SEC]` | Live monitor with sparkline — see §6 |
+| `lax watch [--interval SEC]` | Live monitor with sparkline: see §6 |
 
-### Analyze — think before it happens
+### Analyze: think before it happens
 
 | Command | What it does |
 |---------|--------------|
-| `lax whatif [--shock PCT] [--lt LT] [--json]` | Crash scenario: shocked HF and defense cost — see §6 |
+| `lax whatif [--shock PCT] [--lt LT] [--json]` | Crash scenario: shocked HF and defense cost: see §6 |
 
-### Guard — control the autopilot
+### Guard: control the autopilot
 
 | Command | What it does |
 |---------|--------------|
@@ -314,7 +314,7 @@ Bracketed parts are optional. Commands marked **Confirm** need `--confirm`.
 | `lax autopilot` | One manual scan of all positions |
 | `lax cooldown 15` | Minimum seconds between fires per position |
 
-### Simulate — exercise the whole pipeline (fork only)
+### Simulate: exercise the whole pipeline (fork only)
 
 | Command | What it does |
 |---------|--------------|
@@ -327,7 +327,7 @@ Bracketed parts are optional. Commands marked **Confirm** need `--confirm`.
 | `lax simulate-hf 1.03` **Confirm** | Force a specific HF (mock mode) |
 | `lax mock-start` / `lax mock-stop` | Freeze the position so scenarios are repeatable |
 
-### Execute — move funds (gated, confirmed)
+### Execute: move funds (gated, confirmed)
 
 All execution commands require **Confirm**. With `--local` they run directly
 against the fork's funded dev account (deterministic, no KeeperHub). Without
@@ -341,23 +341,23 @@ it, they route through your KeeperHub workflow.
 | `lax boost 100` | Supply extra collateral to raise HF |
 | `lax swap weth 1 usdc` | Reserved for the workflow swap path |
 
-> ⚠️ **Careful** — `--local` works only on the local fork (it uses the fork's
+> ⚠️ **Careful**, `--local` works only on the local fork (it uses the fork's
 > unlocked dev account). On a public network, let the KeeperHub workflow
 > execute; it signs with your agentic wallet.
 
-### Audit — prove what happened
+### Audit: prove what happened
 
 | Command | What it does |
 |---------|--------------|
-| `lax runs [--limit N] [--json]` | The persistent mitigation log — see §11 |
-| `lax explain <id \| index>` | Replay a gate decision stage by stage — see §11 |
+| `lax runs [--limit N] [--json]` | The persistent mitigation log: see §11 |
+| `lax explain <id \| index>` | Replay a gate decision stage by stage: see §11 |
 | `lax run <id>` | One KeeperHub execution's details |
 | `lax tx <hash>` | Receipt lookup: block, status, gas, explorer link |
 | `lax snapshot [label]` · `lax snapshots` · `lax compare <id>` | Capture the position now, diff it later |
 | `lax history [--limit N]` · `lax tail [--lines N]` | Your command history this session |
 | `lax audit` · `lax export` | Session summary; full JSON dump |
 
-### Manage — sessions and help
+### Manage: sessions and help
 
 | Command | What it does |
 |---------|--------------|
@@ -395,23 +395,23 @@ Every trigger prints the four gate stages as they're decided:
 
 | Flag | Meaning | Default |
 |------|---------|---------|
-| `daemon` (alias `start`) | Continuous monitor loop | — |
-| `dry-run` | Full pipeline, never fires | — |
-| `once` | One poll pass, then exit (CI/demo scripts) | — |
+| `daemon` (alias `start`) | Continuous monitor loop |: |
+| `dry-run` | Full pipeline, never fires |: |
+| `once` | One poll pass, then exit (CI/demo scripts) |: |
 | `--only <name>` | Monitor one named position from `lax.config.json` | all |
 | `--interval <sec>` | Seconds between polls | 2 |
 | `--cooldown <sec>` | Minimum seconds between fires per position | 300 |
-| `--dry-run` | Same as the `dry-run` mode flag | — |
+| `--dry-run` | Same as the `dry-run` mode flag |: |
 
-> 📌 **Note** — `Ctrl-C` shuts down gracefully: it finishes the current poll,
+> 📌 **Note**, `Ctrl-C` shuts down gracefully: it finishes the current poll,
 > writes a shutdown record to the log, then exits. A daily-cap reset is
-> intentional persistence, not a bug — see troubleshooting.
+> intentional persistence, not a bug, see troubleshooting.
 
 ---
 
 ## 10. Operator alerts (Discord & Slack)
 
-> This is an **optional** feature — skip it freely. Full setup walkthrough,
+> This is an **optional** feature, skip it freely. Full setup walkthrough,
 > security notes, and troubleshooting live in
 > [`docs/ALERTS.md`](ALERTS.md).
 
@@ -439,7 +439,7 @@ native embeds). Any other URL that accepts `{"text": "…"}` works too.
 Each alert names the position, the health factor, the repay amount, and the
 KeeperHub execution link. Blocked fires arrive in red, executions in green.
 
-> 💡 **Tip** — alerts are *best-effort by design*. If your webhook is down,
+> 💡 **Tip**, alerts are *best-effort by design*. If your webhook is down,
 > LAX logs it and the mitigation proceeds. Safety never depends on the messenger.
 
 ---
@@ -447,9 +447,9 @@ KeeperHub execution link. Blocked fires arrive in red, executions in green.
 ## 11. History and evidence
 
 LAX keeps an append-only log of everything it does:
-`~/.lax/mitigations.jsonl`. It survives restarts — it is your permanent record.
+`~/.lax/mitigations.jsonl`. It survives restarts, it is your permanent record.
 
-### `lax runs` — the log, human-readable
+### `lax runs`: the log, human-readable
 
 ```console
 $ lax runs
@@ -464,7 +464,7 @@ Each row is one decision: triggers (▲), gate blocks (⛔), fires (⚡),
 failures (✖), dry-runs (◌). Fires carry the KeeperHub audit permalink and the
 on-chain transaction hashes.
 
-### `lax explain` — the "why" behind any decision
+### `lax explain`: the "why" behind any decision
 
 ```console
 $ lax explain 1
@@ -476,9 +476,9 @@ $ lax explain 1
 
 Use a 1-based index (counting from the most recent entry in `lax runs`) or a
 full execution ID. This is the command to reach for when you want to *show*
-someone why LAX did — or refused to do — something.
+someone why LAX did, or refused to do, something.
 
-> 💡 **Tip** — `lax runs --json` gives the whole log machine-readable, and
+> 💡 **Tip**, `lax runs --json` gives the whole log machine-readable, and
 > `tail -f ~/.lax/mitigations.jsonl` follows it live.
 
 ---
@@ -491,9 +491,9 @@ someone why LAX did — or refused to do — something.
 |------|------------|
 | `state.json` | Guardian arm state, cooldowns, spend ledger. Auto-backed-up if it's ever corrupt |
 | `mitigations.jsonl` | The append-only evidence log (`lax runs`) |
-| `safety.json` | Daily-cap ledger — persists across restarts by design |
+| `safety.json` | Daily-cap ledger: persists across restarts by design |
 
-### `lax.config.json` — positions and networks
+### `lax.config.json`: positions and networks
 
 Copy `lax.config.example.json` as a starting point. Each position is an
 address on a named network, and the daemon defends all of them in one loop:
@@ -534,26 +534,26 @@ wallet itself when `LAX_SELF_DEFENSE=true`.
 | Key | Used for |
 |---|---|
 | `KEEPERHUB_API_KEY` (`kh_*`) | org API: workflow management, executions, MCP |
-| `KEEPERHUB_WEBHOOK_KEY` (`wfb_*`) | webhook fires — the daemon prefers it automatically |
+| `KEEPERHUB_WEBHOOK_KEY` (`wfb_*`) | webhook fires: the daemon prefers it automatically |
 | `LAX_WORKFLOW_ID` / `LAX_WORKFLOW_ID_SEPOLIA` | workflow binding (per network in config works too) |
 | `LAX_BORROWER_ADDRESS`, `LAX_WALLET_ADDRESS`, `LAX_SELF_DEFENSE` | who is defended / who executes |
 | `LAX_BLOCK_THRESHOLD_USD`, `LAX_DAILY_LIMIT_USD` | spend caps |
-| `LAX_ALERT_WEBHOOK` | operator alerts (Discord/Slack) — see §10 |
+| `LAX_ALERT_WEBHOOK` | operator alerts (Discord/Slack): see §10 |
 | `LAX_FORK_RPC`, `LAX_ENV_FILE`, `LAX_STATE_DIR`, `LAX_CONFIG_PATH` | endpoints and file locations |
 
 ---
 
 ## 13. Scripting, exit codes, and automation
 
-- Exit code **0** — success, including healthy scans and needs-confirmation.
-- Exit code **1** — any error, blocked command, or failed check.
+- Exit code **0**, success, including healthy scans and needs-confirmation.
+- Exit code **1**, any error, blocked command, or failed check.
 - Piped input runs strictly in order, one command at a time:
 
 ```bash
 printf 'arm\nshock weth -25%% --confirm\nstatus\nexit\n' | npm run lax
 ```
 
-- CI-friendly dry-run — the exit code reflects the gate verdict:
+- CI-friendly dry-run, the exit code reflects the gate verdict:
 
 ```bash
 LAX_BLOCK_THRESHOLD_USD=50 LAX_DAILY_LIMIT_USD=100 npm run lax -- autopilot once
@@ -570,17 +570,17 @@ LAX_BLOCK_THRESHOLD_USD=50 LAX_DAILY_LIMIT_USD=100 npm run lax -- autopilot once
 |---|---|---|
 | `Mode: offline` / `position read failed` | RPC unreachable | `./scripts/demo-up.sh` (boots the fork) |
 | Gate blocks with `BLOCK_THRESHOLD_EXCEEDED` | repay > block cap | size caps: `LAX_BLOCK_THRESHOLD_USD=50 LAX_DAILY_LIMIT_USD=100` |
-| Gate blocks with `DAILY_CAP_EXCEEDED` | 24 h ledger full | intentional — reset with `rm ~/.lax/safety.json` |
+| Gate blocks with `DAILY_CAP_EXCEEDED` | 24 h ledger full | intentional: reset with `rm ~/.lax/safety.json` |
 | Preflight: `transfer amount exceeds allowance` | executing wallet not funded on the fork | `./scripts/fund-demo-wallet.sh` |
 | `KEEPERHUB_API_KEY not set` | `.env` missing keys | copy from `.env.example`, re-run |
 | `wrong_key_type` on a fire | org key used for webhook | add `KEEPERHUB_WEBHOOK_KEY` (`wfb_*`) to `.env` |
 | Stale HF right after a fork tx | 1 s block time | reads retry; wait one block |
-| HF 1.10 forever on Sepolia | healthy position, no risk | expected — lower `threshold` in config to exercise the trigger |
+| HF 1.10 forever on Sepolia | healthy position, no risk | expected: lower `threshold` in config to exercise the trigger |
 | Guardian disarmed warning | daemon won't auto-fire | `lax arm` |
-| `lax demo` starts with "healing the scenario" | a previous run left the fork crashed | it heals itself — let it finish; worst case `./scripts/demo-up.sh` |
+| `lax demo` starts with "healing the scenario" | a previous run left the fork crashed | it heals itself: let it finish; worst case `./scripts/demo-up.sh` |
 | Demo repay reverts on the fork | USDC not seeded | `./scripts/fund-demo-wallet.sh` |
 | `lax alert --test` fails | wrong webhook URL or network down | recreate the channel webhook; alerts never block mitigations |
-| `lax watch` prints once and exits | piped (non-interactive) run | expected — scripts get one sample; run it in a terminal for live updates |
+| `lax watch` prints once and exits | piped (non-interactive) run | expected: scripts get one sample; run it in a terminal for live updates |
 
 ---
 
@@ -588,48 +588,48 @@ LAX_BLOCK_THRESHOLD_USD=50 LAX_DAILY_LIMIT_USD=100 npm run lax -- autopilot once
 
 | Command | Syntax | Confirm | Category |
 |---|---|---|---|
-| status | `lax status` | — | monitor |
-| hf | `lax hf` | — | monitor |
-| watch | `lax watch [--interval SEC]` | — | monitor |
-| position | `lax position` | — | monitor |
-| debt / collateral | `lax debt [token]` | — | monitor |
-| oracle | `lax oracle [token]` | — | monitor |
-| ltv / liquidation-price | `lax ltv` | — | monitor |
-| whatif | `lax whatif [--shock PCT] [--lt LT] [--json]` | — | monitor |
-| demo | `lax demo [--shock PCT] [--yes] [--webhook]` | — | monitor |
-| block / reserves / pool / config / whoami | `lax block` | — | monitor |
-| keeper | `lax keeper` | — | monitor |
-| arm / disarm | `lax arm` | — | guardian |
-| guardian on/off/status | `lax guardian off` | — | guardian |
-| threshold / target | `lax threshold 1.04` | — | guardian |
-| engage / trigger | `lax engage` | — | guardian |
-| autopilot (scan) | `lax autopilot` | — | guardian |
-| cooldown / schedule | `lax cooldown 15` | — | guardian |
+| status | `lax status` |: | monitor |
+| hf | `lax hf` |: | monitor |
+| watch | `lax watch [--interval SEC]` |: | monitor |
+| position | `lax position` |: | monitor |
+| debt / collateral | `lax debt [token]` |: | monitor |
+| oracle | `lax oracle [token]` |: | monitor |
+| ltv / liquidation-price | `lax ltv` |: | monitor |
+| whatif | `lax whatif [--shock PCT] [--lt LT] [--json]` |: | monitor |
+| demo | `lax demo [--shock PCT] [--yes] [--webhook]` |: | monitor |
+| block / reserves / pool / config / whoami | `lax block` |: | monitor |
+| keeper | `lax keeper` |: | monitor |
+| arm / disarm | `lax arm` |: | guardian |
+| guardian on/off/status | `lax guardian off` |: | guardian |
+| threshold / target | `lax threshold 1.04` |: | guardian |
+| engage / trigger | `lax engage` |: | guardian |
+| autopilot (scan) | `lax autopilot` |: | guardian |
+| cooldown / schedule | `lax cooldown 15` |: | guardian |
 | shock | `lax shock weth -30%` | ✔ | mock |
 | flash-crash / crash | `lax crash weth -40%` | ✔ | mock |
-| drip | `lax drip weth -2% 5` | — | mock |
+| drip | `lax drip weth -2% 5` |: | mock |
 | panic | `lax panic` | ✔ | mock |
 | simulate-hf | `lax simulate-hf 1.03` | ✔ | mock |
-| recovery | `lax recovery weth +5%` | — | mock |
-| reset-price | `lax reset-price` | — | mock |
-| freeze/unfreeze-oracle | `lax freeze-oracle` | — | mock |
-| mock-start / mock-stop | `lax mock-start` | — | mock |
+| recovery | `lax recovery weth +5%` |: | mock |
+| reset-price | `lax reset-price` |: | mock |
+| freeze/unfreeze-oracle | `lax freeze-oracle` |: | mock |
+| mock-start / mock-stop | `lax mock-start` |: | mock |
 | repay / paydown | `lax repay 5 --local` | ✔ | onchain |
 | approve | `lax approve usdc 10` | ✔ | onchain |
 | supply / withdraw | `lax supply usdc 5` | ✔ | onchain |
 | boost / rebalance | `lax boost 100` | ✔ | onchain |
 | swap | `lax swap weth 1 usdc` | ✔ | onchain (reserved) |
-| runs | `lax runs [--limit N] [--json]` | — | audit |
-| explain | `lax explain <id \| index>` | — | audit |
-| run | `lax run <id>` | — | audit |
-| audit / history / tail | `lax audit` | — | audit |
-| snapshot / snapshots / compare | `lax snapshot before` | — | audit |
-| tx | `lax tx 0x…` | — | audit |
-| export | `lax export` | — | audit |
-| alert | `lax alert [--test]` | — | system |
-| daemon modes | `lax autopilot daemon [--dry-run] [--once]` | — | autopilot |
-| help / man / aliases | `lax help repay` | — | system |
-| clear / reset / connect / ping / version / uptime / guide | `lax clear` | — | system |
+| runs | `lax runs [--limit N] [--json]` |: | audit |
+| explain | `lax explain <id \| index>` |: | audit |
+| run | `lax run <id>` |: | audit |
+| audit / history / tail | `lax audit` |: | audit |
+| snapshot / snapshots / compare | `lax snapshot before` |: | audit |
+| tx | `lax tx 0x…` |: | audit |
+| export | `lax export` |: | audit |
+| alert | `lax alert [--test]` |: | system |
+| daemon modes | `lax autopilot daemon [--dry-run] [--once]` |: | autopilot |
+| help / man / aliases | `lax help repay` |: | system |
+| clear / reset / connect / ping / version / uptime / guide | `lax clear` |: | system |
 
 ---
 

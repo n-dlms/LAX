@@ -5,9 +5,9 @@ Get LAX running in 5 commands. Total time: ~5 minutes.
 ## Prerequisites
 
 - **Node.js** >= 20 (`node --version`)
-- **Foundry** (anvil/forge/cast) — `curl -L https://foundry.paradigm.xyz | bash`
-- **kh CLI** >= 0.10.0 — `npm install -g @keeperhub/cli`
-- **KeeperHub API key** — create at [app.keeperhub.com/settings/api](https://app.keeperhub.com/settings/api)
+- **Foundry** (anvil/forge/cast), `curl -L https://foundry.paradigm.xyz | bash`
+- **kh CLI** >= 0.10.0, `npm install -g @keeperhub/cli`
+- **KeeperHub API key**, create at [app.keeperhub.com/settings/api](https://app.keeperhub.com/settings/api)
 - **Python 3** (for state restoration)
 
 ## Quick Start
@@ -71,12 +71,12 @@ cd dashboard && npm install && node node_modules/vite/bin/vite.js --host 0.0.0.0
 
 ## Demo Flow
 
-1. Open `http://localhost:5173` — MonitorView shows HF ~1.10 (green)
-2. `npm run lax -- arm` — arm the guardian
-3. `npm run lax -- autopilot daemon` — boot the daemon (second terminal)
+1. Open `http://localhost:5173`. MonitorView shows HF ~1.10 (green)
+2. `npm run lax -- arm`, arm the guardian
+3. `npm run lax -- autopilot daemon`, boot the daemon (second terminal)
 4. Simulate a price crash: `./scripts/drop-oracle-price.sh -28`
 5. Watch the gate stages approve the fire, then the KeeperHub execution ID print
-6. `./scripts/fire-sepolia.sh` — one real transaction on Base Sepolia (submission evidence)
+6. `./scripts/fire-sepolia.sh`, one real transaction on Base Sepolia (submission evidence)
 
 The full verified-testing log (what was executed and what worked, with on-chain
 evidence) is in [VERIFIED-TESTING.md](VERIFIED-TESTING.md). The complete CLI

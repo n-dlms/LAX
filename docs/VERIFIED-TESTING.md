@@ -1,4 +1,4 @@
-# LAX — Verified Testing Log
+# LAX: Verified Testing Log
 
 **Date:** 2026-09-06 (live fire) · Updated 2026-09-18 · **Environment:** Linux x64, Node v24.16.0, Anvil fork of Base mainnet @ block 48236883, Base Sepolia (84532) live testnet.
 Every claim below was executed against a live chain or a real KeeperHub deployment. Nothing in this document is aspirational.
@@ -21,16 +21,16 @@ and completed **5/5 steps, status success**:
 
 **On-chain before/after** (verified via `cast call` against `https://sepolia.base.org`):
 
-- variable debt: `70020374` → `40023470` (0.7002 → 0.4002 USDC — exactly the repaid 0.3)
+- variable debt: `70020374` → `40023470` (0.7002 → 0.4002 USDC, exactly the repaid 0.3)
 - health factor: `6.067 → 10.615`
-- executed by KeeperHub's signing relayer `0xDcF4bac4…` (the platform's agentic wallet — LAX never touches a private key)
+- executed by KeeperHub's signing relayer `0xDcF4bac4…` (the platform's agentic wallet. LAX never touches a private key)
 
 Audit trail: https://app.keeperhub.com/workflows/l4pbmt6jdek9c3lwt0y3b (the platform has no per-execution UI route;
 execution 9bc31ofdfca1m62b2v29t is listed on that page)
 
 Reproduce: `./scripts/fire-sepolia.sh`
 
-## 2. Mitigation gate — every fire path checked, blocking verified
+## 2. Mitigation gate: every fire path checked, blocking verified
 
 The gate (HF math verification → preflight simulation → safety bounds → spend caps)
 is wired into **all** fire paths: `lax autopilot` daemon, CLI `engage`, and the legacy listener.
@@ -38,14 +38,14 @@ is wired into **all** fire paths: `lax autopilot` daemon, CLI `engage`, and the 
 Real outcomes observed during testing:
 
 - **Approved path** (fork, price −25%, `LAX_BLOCK_THRESHOLD_USD=50`):
-  `TRIGGER HF 1.0265 ≤ 1.05 — repay 32.40 USDC` → all 4 stages pass → `dry-run-approved`.
-- **Blocked: spend caps** — with default caps, the $32.40 repay was blocked
+  `TRIGGER HF 1.0265 ≤ 1.05, repay 32.40 USDC` → all 4 stages pass → `dry-run-approved`.
+- **Blocked: spend caps**, with default caps, the $32.40 repay was blocked
   (`BLOCK_THRESHOLD_EXCEEDED: $32.40 > $10.00`) and **nothing fired**. The safety system working.
-- **Blocked: daily budget persisted across restarts** — accumulated spend ($97.21) survived
+- **Blocked: daily budget persisted across restarts**, accumulated spend ($97.21) survived
   dozens of process restarts via `~/.lax/safety.json` and blocked further fires. A daemon
   restart cannot reset the budget.
 - **Caught a real on-chain failure before firing**: an unfunded executing wallet made the
-  preflight simulation revert (`ERC20: transfer amount exceeds allowance`) — the gate blocked
+  preflight simulation revert (`ERC20: transfer amount exceeds allowance`), the gate blocked
   the fire instead of producing a failed on-chain execution.
 - **Dry-runs do not consume budget**: `recordSpend` is off in dry-run mode; two consecutive
   dry-runs both passed with an empty spend ledger (verified: no `safety.json` written).
@@ -56,22 +56,22 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 
 - **Monitor/read**: `status` (HF gauge + danger-colored border), `hf`, `position`, `oracle`,
   `debt`, `collateral`, `ltv`, `block`, `reserves`, `pool`, `config`, `keeper`, `whoami`,
-  `ping`, `connect` — all return live fork data (HF 1.0978, $665 collateral, $480 debt).
+  `ping`, `connect`, all return live fork data (HF 1.0978, $665 collateral, $480 debt).
 - **Guardian**: `arm`/`disarm`/`guardian on|off|status` persist across processes via
   `~/.lax/state.json` (verified: armed in one process, `ENABLED` in a fresh process);
   threshold/target validation rejects <1.0, ≥target, and invalid input.
 - **Mock/stress**: `shock`, `drip`, `flash-crash`, `simulate-hf`, `scenario`, `panic`,
-  `freeze/unfreeze-oracle`, `mock-start/stop`, `reset-price` — all execute real fork
+  `freeze/unfreeze-oracle`, `mock-start/stop`, `reset-price`, all execute real fork
   transactions and restore cleanly. Verified HF states: 1.0978 (green SAFE), 1.0407
   (yellow TRIGGER ZONE), 0.9523 (red LIQUIDATABLE).
 - **Onchain actions** (`--local`, real fork txs): `approve`, `supply`, `withdraw`, `repay`,
-  `paydown`, `boost` — all mined; tx hashes printed.
+  `paydown`, `boost`, all mined; tx hashes printed.
 - **Audit**: `runs`, `run`, `history`, `audit`, `export`, `snapshot`/`snapshots`/`compare`
   (session-scoped, verified inside one REPL session), `tx <hash>`, `tail`.
 - **Confirmation gates**: `repay`/`approve`/`supply`/`withdraw`/`crash`/`scenario`/`panic`
   without `--confirm` are intercepted before execution (verified per-command).
 - **Input validation**: NaN/zero/negative amounts, malformed addresses/hashes, unknown
-  commands (with fuzzy suggestions), missing args — all rejected with exit code 1.
+  commands (with fuzzy suggestions), missing args, all rejected with exit code 1.
 - **Offline behavior**: with the RPC unreachable, commands degrade to a clean
   `Mode: offline` panel (exit 0) and the daemon reports `rpc-unreachable` and keeps polling.
 - **REPL & scripting**: interactive REPL, piped scripting (`echo "status\nruns" | lax`),
@@ -81,8 +81,8 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 
 - `once`, `once --dry-run` (full pipeline, never fires), continuous `daemon` mode with
   2s polling, SIGINT graceful shutdown (finishes the poll, writes the shutdown record).
-- Cooldown: with `lastFiredBy` set, a second trigger logs `cooldown active — not re-firing`.
-- Multi-position: `lax.config.json` (`lax.config.example.json`) — verified `[main]` (HF 1.0978)
+- Cooldown: with `lastFiredBy` set, a second trigger logs `cooldown active, not re-firing`.
+- Multi-position: `lax.config.json` (`lax.config.example.json`), verified `[main]` (HF 1.0978)
   and `[treasury]` (no debt) monitored in one pass with per-position thresholds and cooldowns;
   `--only <name>` filtering verified (including the not-found error).
 - Interval/cooldown flags parse (`--interval 1` → `polling every 1.0s`).
@@ -91,8 +91,8 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 
 ## 5. Test suite & static checks
 
-- `npx tsc --noEmit` — clean (root + dashboard).
-- `npx vitest run` — **21 files, 518 tests** (run date 2026-09-18; suite grew from 467 with V2.1 features: state durability, persisted runs/explain, whatif, watch sparkline, operator alerts, guardian toggle).
+- `npx tsc --noEmit`, clean (root + dashboard).
+- `npx vitest run`, **21 files, 518 tests** (run date 2026-09-18; suite grew from 467 with V2.1 features: state durability, persisted runs/explain, whatif, watch sparkline, operator alerts, guardian toggle).
 - Covers: repay math (closed-form HF targeting), critique gate stages, preflight simulator
   contract + live helper subprocess tests, safety plugin (caps, persistence), multi-position
   config parsing, wallet resolution, listener, e2e integration, config validation,
@@ -103,22 +103,22 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 
 ## 5b. V2.1 feature verification (2026-09-12, live against the fork)
 
-- **`lax demo`** — full narrated run executed twice live (dry-run and `--yes`):
+- **`lax demo`**, full narrated run executed twice live (dry-run and `--yes`):
   scenario auto-heal (WETH price raised iteratively until HF > 1.05), −25% shock,
   gate 4/4 approved, approve+repay executed on the fork (txs
   `0x2accc2e6…`, `0x5f60e19c…`), **HF restored 1.0199 → 1.1009** (target 1.1).
   Also verified the failure paths: stale-read gate block (fixed by computing the
   repay from the fresh read), out-of-gas repay (100k gas insufficient → 300k),
   daily-cap block after repeated runs (correct behavior).
-- **`lax whatif`** — live against the fork: HF 1.0978 @ WETH $3300, −25% shock →
+- **`lax whatif`**, live against the fork: HF 1.0978 @ WETH $3300, −25% shock →
   HF 0.8234 LIQUIDATABLE, repay $0.95 today vs $120.72 after shock. `--json`
   shape verified. Recovery math re-checked from the shocked fork state.
-- **`lax watch`** — live gauge + trend; piped `--once` mode exits after one
+- **`lax watch`**, live gauge + trend; piped `--once` mode exits after one
   sample (script-safe).
-- **`lax runs` / `lax explain`** — read the persistent mitigation log; verified
+- **`lax runs` / `lax explain`**, read the persistent mitigation log; verified
   against the real log (Sepolia fire `9bc31ofdfca1m62b2v29t` + gate-blocked
   records), corrupt-line skip, `--json` dump.
-- **Operator alerts** — unit-tested payload shaping (Discord embed / Slack text /
+- **Operator alerts**, unit-tested payload shaping (Discord embed / Slack text /
   generic), non-blocking delivery, unset-env no-op. End-to-end Discord delivery
   requires a channel webhook (`lax alert --test`).
 - **Reliability fixes verified by tests**: corrupt `state.json` → backup + fresh
@@ -128,38 +128,37 @@ Executed against the Anvil fork (HTTP 200 path) and the offline path:
 
 ## 6. Demo infrastructure (judge reliability)
 
-- `./scripts/demo-up.sh` — idempotent, self-healing; verified by three consecutive runs
+- `./scripts/demo-up.sh`, idempotent, self-healing; verified by three consecutive runs
   converging to HF 1.0978 and by recovery from a deliberately corrupted state.
 - `fork-setup-usdc.sh` made idempotent (re-running supply/borrow on a seeded fork
-  over-leveraged the position until `getUserAccountData` panicked — now guarded).
-- `dry-run.sh` 5× — full pipeline (fork restart → seed → −28% oracle drop → HF
+  over-leveraged the position until `getUserAccountData` panicked, now guarded).
+- `dry-run.sh` 5×, full pipeline (fork restart → seed → −28% oracle drop → HF
   1.0978 → 1.0212 → offline approve→repay→verify) passed 5/5.
-- `fund-demo-wallet.sh` — idempotent (balance/allowance checks skip when funded).
+- `fund-demo-wallet.sh`, idempotent (balance/allowance checks skip when funded).
 
 ## 7. Real bugs found and fixed during verification
 
 These were found *because* the battery exercised real chains, not mocks:
 
-1. **Wrong selector for `getUserAccountData`** (`0x2dfdf0b5` → `0xbf92857c`) — the original
+1. **Wrong selector for `getUserAccountData`** (`0x2dfdf0b5` → `0xbf92857c`), the original
    dashboard CLI had never actually read a live position.
-2. **Wrong selector for `repay`** (`0x57372581` → `0x573ade81`) — every preflight repay
+2. **Wrong selector for `repay`** (`0x57372581` → `0x573ade81`), every preflight repay
    simulation reverted.
-3. **Price-shock math bug** — percent→basis-points used ×10,000 instead of ×100, so any
+3. **Price-shock math bug**, percent→basis-points used ×10,000 instead of ×100, so any
    shock ≥1% computed a *negative* price (invalid calldata revert).
-4. **HMAC verification always failed** — the proxy compared bare hex against the
+4. **HMAC verification always failed**, the proxy compared bare hex against the
    client's `sha256=<hex>` (length mismatch).
-5. **Spend-cap reset on restart** — daily budget was in-memory; now persisted.
-6. **Dry-runs consumed the daily budget** — now check-only.
-7. **Webhook key type** — webhook triggers require `wfb_*` keys; the fire path now
+5. **Spend-cap reset on restart**, daily budget was in-memory; now persisted.
+6. **Dry-runs consumed the daily budget**, now check-only.
+7. **Webhook key type**, webhook triggers require `wfb_*` keys; the fire path now
    prefers them automatically.
 8. **`--only` not wired** from the binary into the daemon's position filter.
-9. **Dashboard auto-fired on page load** with the guardian disarmed — now requires `arm`.
+9. **Dashboard auto-fired on page load** with the guardian disarmed, now requires `arm`.
 
 ## 8. Multi-network monitoring (verified live, two chains, one loop)
 
 With `lax.config.json` declaring `base-fork` (local RPC) and `base-sepolia`
-(public Sepolia RPC), the daemon monitored both positions in a single pass —
-live output:
+(public Sepolia RPC), the daemon monitored both positions in a single pass, live output:
 
 ```
 ✔ 21:05:24 [main]    HF 1.0978  — above trigger 1.05    (Anvil fork of Base)
@@ -168,7 +167,7 @@ live output:
 
 The Sepolia row is a real on-chain read of the same position whose debt the
 live fire (§1) reduced. On trigger, each position fires its own network's
-KeeperHub workflow with its own pool/USDC — nothing is hardcoded to a chain.
+KeeperHub workflow with its own pool/USDC, nothing is hardcoded to a chain.
 
 ## 9. Known transients (by design, not bugs)
 
@@ -189,7 +188,7 @@ makes:
   `src/keeperhub.ts`); verified live: fire through the dev proxy returns
   `{"executionId":"z0mzq6kc2umblzffv2hxi","status":"running"}` with HTTP 200.
 - **Execution-status poller (fixed, two bugs)**: the endpoint requires an
-  `Authorization` header — without it the API answers 404 "Execution not
+  `Authorization` header, without it the API answers 404 "Execution not
   found" (the poller silently stopped, so step progress never came from
   KeeperHub). It also parsed a `steps[]` shape that does not exist; the real
   response is `nodeStatuses[]` + `transactionHashes[]`. Both fixed; the parser
@@ -198,12 +197,12 @@ makes:
 - **Completion precedence (fixed)**: when the KeeperHub relayer reports
   "failed" (it executes on the real network and cannot reach a local fork) but
   the local fork steps all succeeded, the completion screen now reports
-  **resolved** — fork evidence wins.
+  **resolved**, fork evidence wins.
 - **Verified correct as-is**: approve/repay/verify selectors, impersonation +
   calldata + gas in the local fallback path, position poller (selector
   0xbf92857c, offline cache), price-shock handler (ANVIL_SIGNER, setAssetPrice
   0x51323f72), merge precedence (local successes over polled).
 - Known platform limitation surfaced honestly by the fixed poller: the fork
   workflow's repay step fails on the relayer side ("Insufficient BASE balance"
-  on chain 8453) — the local fork execution is the real repair; the workflow
+  on chain 8453), the local fork execution is the real repair; the workflow
   is the audit trail.
