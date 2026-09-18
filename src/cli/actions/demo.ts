@@ -123,8 +123,8 @@ export async function handleDemo(ctx: CommandContext, args: ParsedArgs): Promise
   if (!process.env.LAX_BLOCK_THRESHOLD_USD) process.env.LAX_BLOCK_THRESHOLD_USD = "50";
   if (!process.env.LAX_DAILY_LIMIT_USD) process.env.LAX_DAILY_LIMIT_USD = "100";
   const shockPct = (() => {
-    const raw = parseFloat(args.flags["shock"] ?? "35");
-    return Number.isFinite(raw) && raw > 0 && raw <= 90 ? raw : 35;
+    const raw = parseFloat(args.flags["shock"] ?? "50");
+    return Number.isFinite(raw) && raw > 0 && raw <= 90 ? raw : 50;
   })();
   const dryRun = args.flags["yes"] === undefined;
   const fireWebhook = args.flags["webhook"] !== undefined;
