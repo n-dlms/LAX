@@ -40,17 +40,17 @@ your config). Use them to answer "where do I stand right now?"
 ### `lax status`: the one-screen answer
 *Aliases: `st`*
 
-The command you'll use most. One call gives you the health factor with its
-gauge, collateral, debt, current block, and whether the guardian is armed:
+One call gives you the health factor with its
+gauge, collateral, debt, current block, and whether the guardian is armed (numbers vary with fork state):
 
 ```console
 $ lax status
-HF 1.0978  SAFE — LAX ARMED ZONE
-   ████████▮────────────────
+HF 1.0645  SAFE — LAX ARMED ZONE
+         ▮───────────────────
    0.8                    2.0   liq 1.00 · trigger 1.05
-Collateral: $665.00
-Debt: $480.00
-Block: #48237611
+Collateral: $568.07
+Debt: $419.44
+Block: #48252134
 Guardian: ENABLED
 ```
 

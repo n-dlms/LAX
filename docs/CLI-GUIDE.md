@@ -150,29 +150,29 @@ What you'll see, step by step:
 5. **The repair executes**, approve + repay on-chain (with `--yes`)
 6. **Verification**. HF restored above target, before any liquidation
 
-Real output from a verified run:
+Example output, actual numbers vary with fork state and block (verified 2026-09-18, Anvil fork 48236883):
 
 ```console
 $ lax demo
 1 · The position we're defending
-HF 1.0894  SAFE — LAX ARMED ZONE
-   ██████████▮──────────────
+HF 1.1094  HEALTHY
+         ▮───────────────────
    0.8                    2.0   liq 1.00 · trigger 1.05
-   collateral $660.13 · debt $480.00
+  collateral $590.76 · debt $419.44
 
 2 · Market crashes — WETH drops 25%
-▲ WETH/USD $3202.52 → $2401.89
+▲ WETH/USD $1815.00 → $1361.25
 
 4 · TRIGGER — the mitigation gate decides
-⚡ HF 1.0202 ≤ 1.05 → repay 35.186300 USDC (exact amount, computed at fire time)
-✔ PASS HF Math Verification — Passed (0ms)
-✔ PASS Pre-flight Simulation — Passed (243ms)
-✔ PASS Safety Bounds Check — Passed (0ms)
-✔ PASS spend-caps — Repays $35.19 within block/daily caps
+⚡ HF 1.0645 ≤ 1.05 → repay 13.668911 USDC (exact amount, computed at fire time)
+✔ PASS HF Math Verification — Passed (1ms)
+✔ PASS Pre-flight Simulation — Passed (241ms)
+✔ PASS Safety Bounds Check — Passed (1ms)
+✔ PASS spend-caps — Repays $13.67 within block/daily caps
 🛡 Gate approved 4/4 — execution authorized
 
 6 · Verify — the position is repaired
-✔ HF restored: 1.0199 → 1.1009 (target 1.1) — before any liquidation.
+◆ dry-run: position untouched — the real fire would repay and restore HF to the target.
 ```
 
 > 💡 **Tip**, run `lax demo` as many times as you like. If a previous run left
@@ -189,14 +189,16 @@ HF 1.0894  SAFE — LAX ARMED ZONE
 
 ```console
 $ lax status
-HF 1.0978  SAFE — LAX ARMED ZONE
-   ████████▮────────────────
+HF 1.0645  SAFE — LAX ARMED ZONE
+         ▮───────────────────
    0.8                    2.0   liq 1.00 · trigger 1.05
-Collateral: $665.00
-Debt: $480.00
-Block: #48237611
+Collateral: $568.07
+Debt: $419.44
+Block: #48252134
 Guardian: ENABLED
 ```
+
+Actual numbers vary with fork state and block; the gauge and labels are stable.
 
 The gauge is your whole risk picture in one line: the marker `▮` is you, red is
 the liquidation zone, yellow is where LAX acts, green is calm water.
@@ -226,20 +228,19 @@ Ask the question every borrower actually cares about:
 $ lax whatif --shock 25
 What-if: collateral drops 25% right now
 ────────────────────────────────────────────────────────────
-  HF now:       1.0978  █████████████░░░░░░░░░░░  caution — close to the trigger
-  HF shocked:   0.8234  ██████████░░░░░░░░░░░░░░  LIQUIDATABLE — bots can close the position
+  HF now:       1.1094  █████████████░░░░░░░░░░░  healthy
+  HF shocked:   0.8321  ██████████░░░░░░░░░░░░░░  LIQUIDATABLE — bots can close the position
 
-  Collateral:   $665.00 → $498.75
-  Debt:         $480.00 (unchanged)
+  Collateral:   $590.76 → $443.07
+  Debt:         $419.44 (unchanged)
 
 Defense cost — restore HF to 1.1:
-  REPAY debt:   $0.95 today → $120.72 after the shock  (defending early saves $119.76)
-  SUPPLY col.:  $161.25 at LT 0.8
-  Comparator:   recommends REPAY (alternative SUPPLY: $161.25)
+  REPAY debt:   $0.00 today → $102.17 after the shock  (defending early saves $102.17)
+  SUPPLY col.:  $133.66 at LT 0.8
+  Comparator:   recommends REPAY (alternative SUPPLY: $133.66)
 ```
 
-Read that "defending early saves" line twice, it is LAX's whole reason to
-exist in one number. Options:
+The "defending early saves" value is the cost difference for the same target. Options:
 
 | Flag | Meaning |
 |------|---------|
@@ -260,9 +261,7 @@ Nothing moves funds without passing every layer below, in order:
 | 3. Preflight simulation | The approve+repay pair is *simulated* against the chain before anything real | `Pre-flight Simulation` |
 | 4. Safety bounds | Selector allowlist + per-transaction and daily spend caps | `Safety Bounds Check` · `spend-caps` |
 
-> 📌 **The most important sentence in this guide:** a blocked fire is a
-> *successful* safety outcome. The gate prints each stage's verdict and nothing
-> touches the chain.
+A blocked fire is a successful safety outcome. The gate prints each stage's verdict and no transaction is sent.
 
 Default caps are deliberately small for the demo wallet ($10 per
 transaction, $5 per day, persisted in `~/.lax/safety.json`); the fork demo
@@ -395,13 +394,13 @@ Every trigger prints the four gate stages as they're decided:
 
 | Flag | Meaning | Default |
 |------|---------|---------|
-| `daemon` (alias `start`) | Continuous monitor loop |: |
-| `dry-run` | Full pipeline, never fires |: |
-| `once` | One poll pass, then exit (CI/demo scripts) |: |
+| `daemon` (alias `start`) | Continuous monitor loop | — |
+| `dry-run` | Full pipeline, never fires | — |
+| `once` | One poll pass, then exit (CI/demo scripts) | — |
 | `--only <name>` | Monitor one named position from `lax.config.json` | all |
 | `--interval <sec>` | Seconds between polls | 2 |
 | `--cooldown <sec>` | Minimum seconds between fires per position | 300 |
-| `--dry-run` | Same as the `dry-run` mode flag |: |
+| `--dry-run` | Same as the `dry-run` mode flag | — |
 
 > 📌 **Note**, `Ctrl-C` shuts down gracefully: it finishes the current poll,
 > writes a shutdown record to the log, then exits. A daily-cap reset is
