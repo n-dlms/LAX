@@ -32,3 +32,6 @@ fork-state.json
 
 # Local-only demo notes (private recording script, never push)
 .demo-notes.md
+
+# TypeScript build cache
+*.tsbuildinfo

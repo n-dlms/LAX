@@ -177,7 +177,6 @@ add(def("guardian-on", "lax guardian on", "Enable auto-protection monitoring", "
 }));
 add(def("guardian-off", "lax guardian off", "Disable auto-protection monitoring", "guardian", "local-only", {
   aliases: ["guard-off"],
-  confirmRequired: true,
 }));
 add(def("guardian-status", "lax guardian status", "Show guardian state (armed, threshold, target)", "guardian", "local-only", {
   aliases: ["gstatus", "guard-status"],
