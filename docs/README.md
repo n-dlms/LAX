@@ -14,10 +14,7 @@ Everything you need to run, understand, and verify LAX.
 | [`SCOPE.md`](SCOPE.md) | What is and isn't in scope (and why) |
 | [`ALERTS.md`](ALERTS.md) | Optional: Discord/Slack operator alerts — setup, security notes, troubleshooting |
 | [`zero-cost-testnet-plan.md`](zero-cost-testnet-plan.md) | The Base Sepolia live-testnet submission path |
-| [`SUBMISSION-DRAFT.md`](SUBMISSION-DRAFT.md) | DoraHacks BUIDL form answers + pre-deadline checklist |
-| [`FEEDBACK.md`](FEEDBACK.md) | Onboarding-DX bounty report: KeeperHub platform friction points and workarounds |
-
-Internal build journal (ADRs, phase research, plans) is in [`archive/`](archive/README.md).
+| [`FEEDBACK.md`](FEEDBACK.md) | Onboarding-DX research: KeeperHub platform friction points and workarounds |
 
 ## Quick start (30 seconds)
 

@@ -3,16 +3,16 @@
 > **Reading note (Sep 2026):** this document is the Phase 2 architecture sprint
 > record (2026-07-05) and parts of it are historical — the authoritative
 > current-state docs are [`../README.md`](../README.md),
-> [`SUBMISSION-DRAFT.md`](SUBMISSION-DRAFT.md), [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md),
-> and [`SETUP.md`](SETUP.md). Key deltas since this was written: the primary
-> trigger path is now `lax autopilot` daemon (`src/autopilot/daemon.ts`), not the
-> one-shot `scripts/hf-listener.ts`; the dashboard lives in `dashboard/` (not
+> [`VERIFIED-TESTING.md`](VERIFIED-TESTING.md), and [`SETUP.md`](SETUP.md).
+> Key deltas since this was written: the primary trigger path is now
+> `lax autopilot` daemon (`src/autopilot/daemon.ts`), not the one-shot
+> `scripts/hf-listener.ts`; the dashboard lives in `dashboard/` (not
 > `src/dashboard/`); gas sponsorship is org-level credits with no event tag
 > (confirmed Discord Sep 10); audit-trail links point at the workflow runs page
 > (`app.keeperhub.com/workflows/<id>` — no per-execution route); and the Sepolia
-> workflow repays a static 0.3 USDC (platform rejects dynamic uint256 refs —
-> see `SUBMISSION-DRAFT.md` "what still breaks"). Build journal moved to
-> [`archive/`](archive/README.md).
+> workflow repays a static 0.3 USDC (the platform rejects dynamic uint256 template
+> refs — the daemon computes the exact amount at fire time and sends it in the
+> webhook payload).
 
 **Date**: 2026-07-05
 **Phase**: 2 (Architecture Sprint)
@@ -137,7 +137,7 @@ interface MitigationEvent {
 }
 
 // Mirrors the subset of the KeeperHub get_execution_logs payload we display.
-// Full payload schema is in docs/archive/phase1/KeeperHub Observability Research.md:28-89.
+// Full payload schema was defined in the KeeperHub observability research conducted during the build.
 interface WorkflowExecution {
   executionId: string;
   workflowId: string;
@@ -211,7 +211,7 @@ export function hfToHuman(hf: bigint): number {
 }
 ```
 
-This is the **only** custom math in LAX. Everything else is calls. Tested by `tests/repay-math.test.ts` with the worked example from `docs/archive/phase1/Aave V3 Liquidation Mechanics Research.md:80-94` (collateral $1500, debt $1000, HF 0.98, target 1.10 → repay ~$109.09 USDC, but in scaled form: debt=1e21, hf=0.98e18, target=1.10e18 → repay ≈ 109_090909 USDC (6-dec)).
+This is the **only** custom math in LAX. Everything else is calls. Tested by `tests/repay-math.test.ts` with the worked example from the Aave V3 liquidation-mechanics research (collateral $1500, debt $1000, HF 0.98) (collateral $1500, debt $1000, HF 0.98, target 1.10 → repay ~$109.09 USDC, but in scaled form: debt=1e21, hf=0.98e18, target=1.10e18 → repay ≈ 109_090909 USDC (6-dec)).
 
 ---
 
@@ -248,7 +248,7 @@ HF Listener → HTTP POST → KeeperHub Webhook → KeeperHub Executor → Anvil
 
 There is **no** LLM inference in the critical path between HF dropping and the approve tx firing. The LLM (NVIDIA NIM) only enters during the workflow execution phase (approve → repay), where the Aave V3 plugin needs natural-language-to-tool-selection. The HF listener bypasses the LLM entirely — it's a deterministic TypeScript daemon.
 
-This is intentional per `docs/archive/phase1/KeeperHub Observability Research.md:91-129`: webhook trigger latency is ~0.5-1.2s vs. agent-driven polling which adds LLM inference time (+1-3s). For the critical "sub-3-second response" claim, we cannot afford the LLM's round trip in the trigger path.
+This is intentional per the KeeperHub observability research: webhook trigger latency is ~0.5-1.2s vs. agent-driven polling which adds LLM inference time (+1-3s). For the critical "sub-3-second response" claim, we cannot afford the LLM's round trip in the trigger path.
 
 ### 3.4 Safety Plugin Design (C3)
 
@@ -523,7 +523,7 @@ The footer persists across all 3 screens. Screen 3 is shown after the `RESOLVED`
 
 ## 7. Phase 3 Plan
 
-Phase 3 is divided into 6 engineered subphases in `docs/archive/phase3/P3-PLAN.md`. Each subphase has an input state, output state, verification gate, and rollback point. No subphase starts before the previous one gates green.
+Phase 3 is divided into 6 engineered subphases in the Phase 3 build plan. Each subphase has an input state, output state, verification gate, and rollback point. No subphase starts before the previous one gates green.
 
 | Subphase | State Transition | Effort | Gate |
 |----------|-----------------|--------|------|

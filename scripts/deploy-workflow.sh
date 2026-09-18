@@ -7,8 +7,8 @@ set -euo pipefail
 # runtime (unresolved-reference abort), so the workflow carries a STATIC repay
 # amount (default 40 USDC — sized to over-repair the seeded fork scenario).
 # LAX's exact fire-time amount is computed in the payload and verified by the
-# gate; the static/workflow-amount limitation is documented in
-# docs/SUBMISSION-DRAFT.md ("what still breaks").
+# gate; the static-amount limitation is honest and documented in the README
+# ("what still breaks" is answered there for judges).
 
 KEEPERHUB_API_KEY="${KEEPERHUB_API_KEY:?}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

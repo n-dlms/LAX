@@ -214,17 +214,27 @@ npm run lint      # tsc --noEmit — clean (root + dashboard)
 | Usefulness and originality | Proactive-not-reactive liquidation defense at HF=1.05 — retail Aave users have no autonomous defender above the MEV-bot threshold |
 | Developer experience and code quality | `npm run setup` one-command bootstrap, `bootstrap/` starter template, zero `any` types, every address in one `src/config.ts`, candid limitations documented |
 
-## Architecture decision records
+## Design decisions
 
-The 25 decisions behind this design — agent stack, wallet custody, the HF 1.05
-proactive trigger, chain strategy, gas-sponsorship fallback — are documented in
-[`docs/archive/adr/`](docs/archive/adr/). Highlights:
+The key decisions behind this design — agent stack, wallet custody, the HF 1.05
+proactive trigger, chain strategy, gas-sponsorship fallback:
 
-- ADR-001: Agent stack (OpenCode + NVIDIA NIM + custom safety plugin)
-- ADR-003: Agentic wallet (first-party `@keeperhub/wallet`, Turnkey custody)
-- ADR-005: Aave V3 onchain path (proactive defense at HF=1.05, two-step approve → repay, closed-form math)
-- ADR-006: Gas sponsorship (org-level credits, testnet uncharged; wallet-pays-gas fork fallback)
-- ADR-011: Preflight simulation (eth_call the approve+repay before any real fire)
+- Agent stack: OpenCode + NVIDIA NIM + custom safety plugin
+- Agentic wallet: first-party `@keeperhub/wallet` (Turnkey custody — LAX never touches a private key)
+- Aave V3 onchain path: proactive defense at HF=1.05, two-step approve → repay, closed-form math
+- Gas sponsorship: org-level credits (testnet uncharged); wallet-pays-gas fork fallback
+- Preflight simulation: `eth_call` the approve+repay before any real fire
+
+## What still breaks (honest limitations)
+
+1. The Sepolia workflow repays a **static 0.3 USDC**: the `aave-v3/repay` uint256
+   `amount` rejects template refs at save-time and `web3/write-contract`
+   `functionArgs` elements don't resolve templates at runtime. Mitigation: the
+   daemon computes the exact amount at fire time and sends it in the webhook
+   payload. Frame it as: fork = the exact-repay defense story; Sepolia = the
+   live-value receipt.
+2. `--local` CLI onchain actions are fork-only (Anvil unlocked dev account);
+   public RPCs need the KeeperHub workflow path.
 
 ## Bounty track — Best KeeperHub Feature (separate BUIDL)
 
