@@ -197,6 +197,7 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
   const [webhookNote, setWebhookNote] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [localSteps, setLocalSteps] = useState<MitigationStep[] | null>(null);
+  const [localInFlight, setLocalInFlight] = useState(false);
   const localFinalRef = useRef<MitigationEvent | null>(null);
   const localDoneRef = useRef(false);
   const localRunTokenRef = useRef<number | null>(null);
@@ -214,8 +215,8 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
   const { event: polledEvent, error: pollError } = useExecutionPoller(executionId);
 
   const displaySteps = useMemo(() => {
-    return mergeSteps(makeInitialSteps(), polledEvent?.steps ?? null, localSteps, executionId, localError);
-  }, [executionId, localError, localSteps, polledEvent]);
+    return mergeSteps(makeInitialSteps(), polledEvent?.steps ?? null, localSteps, executionId, localError, localInFlight);
+  }, [executionId, localError, localSteps, localInFlight, polledEvent]);
 
   const triggerWorkflow = useCallback(async () => {
     try {
@@ -293,6 +294,11 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
   // independently of the KeeperHub trigger: if the webhook is unavailable (no
   // key, undeployed edge proxy) or the relayer can't reach the fork, the user
   // still watches approve → repay → verify complete on-chain here.
+  // Deps are intentionally narrowed to rpcUrl + retryNonce: the trigger event
+  // object is rebuilt on every position poll and the KeeperHub execution id
+  // arrives mid-repair — either re-running this effect would cancel the
+  // in-flight repay (approve lands, repay never does) and the token guard
+  // below would block the restart. Retry is the only legitimate restart.
   useEffect(() => {
     if (!isLocalRpc(rpcUrl)) return;
     // Run at most once per attempt — the effect re-runs when the KeeperHub
@@ -302,6 +308,7 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
     let cancelled = false;
 
     async function executeLocal() {
+      setLocalInFlight(true);
       const borrowAddr = borrowerAddress;
       const poolAddr = LAX_CONFIG.AAVE_POOL;
       const usdcAddr = LAX_CONFIG.USDC;
@@ -449,9 +456,13 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
       }
     }
 
-    executeLocal().finally(() => { localDoneRef.current = true; });
+    executeLocal().finally(() => {
+      localDoneRef.current = true;
+      setLocalInFlight(false);
+    });
     return () => { cancelled = true; };
-  }, [executionId, retryNonce, event, onComplete, borrowerAddress, rpcUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- narrow deps by design; see comment above
+  }, [rpcUrl, retryNonce]);
 
   // Monitor completion via KeeperHub polling - merge steps
   useEffect(() => {
@@ -511,13 +522,12 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
     localFinalRef.current = null;
     localDoneRef.current = false;
     if (!executionId) {
-      hasTriggeredRef.current = false;
-      // will trigger via direct call
+      // No execution id: re-fire the webhook trigger (direct call), and the
+      // nonce bump below restarts the local repair in every case.
       hasTriggeredRef.current = true;
       triggerWorkflow();
-    } else {
-      setRetryNonce((n) => n + 1);
     }
+    setRetryNonce((n) => n + 1);
   }, [executionId, triggerWorkflow]);
 
   const currentHf = polledEvent?.finalHF ?? event.hfAtTrigger;

@@ -9,12 +9,19 @@ export function isLocalRpc(url: string): boolean {
   return /^https?:\/\/(127\.0\.0\.1|localhost|0\.0\.0\.0)(:\d+)?/i.test(url);
 }
 
+/**
+ * @param localInFlight true while the local fork repair is mid-flight. A
+ *   relayer-reported step failure (its wallet has no fork gas) must not paint
+ *   a step red while the local pipeline is still executing it — the local
+ *   outcome is the fork truth and replaces the display when it lands.
+ */
 export function mergeSteps(
   base: MitigationStep[],
   polled: MitigationStep[] | null,
   localSteps: MitigationStep[] | null,
   executionId: string | null,
   localError: string | null,
+  localInFlight = false,
 ): MitigationStep[] {
   const byId = new Map((polled ?? []).map((step) => [step.stepId, step]));
   const localById = new Map((localSteps ?? []).map((step) => [step.stepId, step]));
@@ -46,6 +53,13 @@ export function mergeSteps(
       return { ...step, status: "running", startedAt: step.startedAt ?? Date.now() };
     }
 
-    return localById.get(step.stepId) ?? byId.get(step.stepId) ?? step;
+    const local = localById.get(step.stepId);
+    if (local) return local;
+    const polledStep = byId.get(step.stepId);
+    if (polledStep?.status === "failed" && localInFlight) {
+      // Local repair owns this step's verdict while it is mid-flight.
+      return { ...step, status: "running", error: null };
+    }
+    return polledStep ?? step;
   });
 }
