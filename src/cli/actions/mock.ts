@@ -220,24 +220,65 @@ export async function handleResetPrice(ctx: CommandContext): Promise<CommandResu
 export async function handleSimulateHf(ctx: CommandContext, args: ParsedArgs): Promise<CommandResult> {
   const targetHf = parseFloat(args.positional[0] ?? "1.02");
   if (isNaN(targetHf) || !isFinite(targetHf)) return { output: `Invalid target HF`, error: "Invalid argument" };
+  if (targetHf <= 0 || targetHf > 1.5) {
+    return { output: `lax simulate-hf: target must be between 0 and 1.5 (got ${targetHf})`, error: "Invalid argument" };
+  }
 
   try {
     const oracle = await getOracleAddress(ctx);
-    const pos = ctx.position();
-    if (!pos) return { output: "No position data", error: "Position unavailable" };
+    const readHf = async (): Promise<number> => {
+      await ctx.refreshPosition();
+      const p = ctx.position();
+      if (!p) throw new Error("position read failed after the price write");
+      return Number(p.healthFactor) / 1e18;
+    };
 
-    const coll = Number(pos.totalCollateralUSD) / 1e8;
-    const debt = Number(pos.totalDebtUSD) / 1e8;
-    const wethCollPortion = coll * 0.6;
+    const TOLERANCE = 0.005;
+    let price = await getPrice(ctx, oracle, LAX_CONFIG.WETH);
+    let hf = await readHf();
+    if (!isFinite(hf) || hf > 1e9) {
+      return { output: "Position has no debt — HF is unbounded, nothing to simulate", error: "Invalid state" };
+    }
+    const startHf = hf;
+    if (Math.abs(hf - targetHf) <= TOLERANCE) {
+      return {
+        output: `HF already ${hf.toFixed(4)} (target ${targetHf}) — oracle left at $${(Number(price) / 1e8).toFixed(2)}`,
+        shouldUpdatePosition: true,
+      };
+    }
 
-    const neededWethPrice = (debt * targetHf * 1.0) / wethCollPortion;
-    const priceBig = BigInt(Math.round(neededWethPrice * 1e8));
+    // HF is affine — not proportional — in the collateral price when the
+    // position holds more than one collateral (the stablecoin leg doesn't
+    // move). Two measurements give the exact slope, so solve for the price
+    // instead of guessing the WETH/collateral mix (the old formula assumed a
+    // 60% WETH share and could drive HF far past the target).
+    for (let round = 0; round < 4; round++) {
+      const probe = hf > targetHf ? (price * 90n) / 100n : (price * 110n) / 100n;
+      await setPrice(ctx, oracle, LAX_CONFIG.WETH, probe);
+      const hfProbe = await readHf();
+      const slope = (hfProbe - hf) / (Number(probe - price) / 1e8);
+      if (!isFinite(slope) || Math.abs(slope) < 1e-9) {
+        return { output: "Simulate HF failed: oracle move did not change HF — is the Pool reading this oracle?", error: "execution-failed" };
+      }
+      const solved = Number(price) / 1e8 + (targetHf - hf) / slope;
+      if (!isFinite(solved) || solved <= 0) {
+        return { output: `Simulate HF failed: target ${targetHf} is unreachable from this collateral`, error: "execution-failed" };
+      }
+      price = BigInt(Math.round(solved * 1e8));
+      await setPrice(ctx, oracle, LAX_CONFIG.WETH, price);
+      hf = await readHf();
+      if (Math.abs(hf - targetHf) <= TOLERANCE) break;
+    }
 
-    await setPrice(ctx, oracle, LAX_CONFIG.WETH, priceBig);
-    await ctx.refreshPosition();
-
+    const finalPrice = Number(price) / 1e8;
+    if (Math.abs(hf - targetHf) > 0.02) {
+      return {
+        output: `Simulate HF: best effort — HF ${hf.toFixed(4)} (target ${targetHf}) at WETH $${finalPrice.toFixed(2)}`,
+        error: "execution-failed",
+      };
+    }
     return {
-      output: `Simulated HF = ${targetHf}\nWETH price set to $${neededWethPrice.toFixed(2)}`,
+      output: `HF ${startHf.toFixed(4)} → ${hf.toFixed(4)} (target ${targetHf})\nWETH price: $${finalPrice.toFixed(2)}`,
       shouldUpdatePosition: true,
     };
   } catch (err) {

@@ -336,10 +336,14 @@ function AgentInsights({
   position,
   listenerAlive,
   loading,
+  armed,
+  blocked,
 }: {
   position: UserPosition | null;
   listenerAlive: boolean;
   loading: boolean;
+  armed: boolean;
+  blocked: boolean;
 }) {
   if (loading) {
     return (
@@ -379,7 +383,13 @@ function AgentInsights({
   } else if (hfVal <= LAX_CONFIG.HF_TRIGGER) {
     stateLabel = "TRIGGERED";
     stateColor = "text-red heartbeat-pulse";
-    thought = `HF ${hfVal.toFixed(4)} dropped below trigger ${LAX_CONFIG.HF_TRIGGER}. Executing mitigation: repay debt to restore HF above ${LAX_CONFIG.HF_TARGET}.`;
+    if (armed && !blocked) {
+      thought = `HF ${hfVal.toFixed(4)} dropped below trigger ${LAX_CONFIG.HF_TRIGGER}. Executing mitigation: repay debt to restore HF above ${LAX_CONFIG.HF_TARGET}.`;
+    } else if (blocked) {
+      thought = `HF ${hfVal.toFixed(4)} is below trigger ${LAX_CONFIG.HF_TRIGGER}. Protection already executed — standing by. Use Re-arm Autopilot to resume coverage.`;
+    } else {
+      thought = `HF ${hfVal.toFixed(4)} is below trigger ${LAX_CONFIG.HF_TRIGGER}, but the autopilot is not armed — nothing will execute on its own. Arm the autopilot to defend automatically, or use Execute Protection to repay manually.`;
+    }
   } else if (hfVal < LAX_CONFIG.HF_TARGET) {
     stateLabel = "DANGER";
     stateColor = "text-red heartbeat-pulse";
@@ -580,12 +590,16 @@ function AutopilotStrip({
   listenerAlive,
   terminalCount,
   onRearm,
+  onArmToggle,
+  terminalExecuting,
 }: {
   guardian: { enabled: boolean; blocked: boolean; threshold: number; target: number };
   mockMode: boolean;
   listenerAlive: boolean;
   terminalCount: number;
   onRearm?: () => void;
+  onArmToggle: () => void;
+  terminalExecuting: boolean;
 }) {
   const state = guardian.blocked ? "STANDBY" : guardian.enabled ? "PROTECTING" : "MANUAL";
   const stateColor = guardian.blocked ? "text-yellow border-yellow bg-yellow/10" : guardian.enabled ? "text-green border-green bg-green/10" : "text-yellow border-yellow bg-yellow/10";
@@ -605,6 +619,21 @@ function AutopilotStrip({
               className="mt-2 text-xs border border-yellow text-yellow px-2 py-1 bg-yellow/10 hover:bg-yellow hover:text-bgcol transition-colors"
             >
               Re-arm Autopilot
+            </button>
+          )}
+          {!guardian.blocked && (
+            <button
+              type="button"
+              onClick={onArmToggle}
+              disabled={terminalExecuting}
+              title={guardian.enabled ? "Disable auto-protection (lax guardian off)" : "Enable auto-protection (lax guardian on)"}
+              className={`mt-2 text-xs border px-2 py-1 transition-colors ${
+                guardian.enabled
+                  ? "border-bordercol text-secondary bg-transparent hover:border-yellow hover:text-yellow"
+                  : "border-green text-green bg-green/10 hover:bg-green hover:text-bgcol"
+              } ${terminalExecuting ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              {guardian.enabled ? "Disarm Autopilot" : "Arm Autopilot"}
             </button>
           )}
         </div>
@@ -1183,6 +1212,16 @@ export default function MonitorView({ onTrigger, autoTriggerBlocked }: MonitorVi
     setLogs((prev) => [...prev, { ts: Date.now(), level: "warn" as const, message: "Autopilot re-armed by user" }].slice(-LOG_CAP));
   }, [autoTriggerBlocked]);
 
+  // Arm/disarm the autopilot from the UI by reusing the same CLI command the
+  // terminal runs — one code path for state, logs, and dispatcher events.
+  const handleArmToggle = useCallback(() => {
+    const enable = !guardianState.enabled;
+    void executeCommand(enable ? "lax guardian on" : "lax guardian off");
+    // If the user arms while the position is already in the trigger zone,
+    // re-evaluate now instead of waiting for the next HF band change.
+    if (enable) prevTriggeredRef.current = false;
+  }, [executeCommand, guardianState.enabled]);
+
   const handleStressEvent = useCallback(async () => {
     if (!position || !listenerAlive || stressRunning) return;
 
@@ -1339,6 +1378,8 @@ export default function MonitorView({ onTrigger, autoTriggerBlocked }: MonitorVi
         listenerAlive={listenerAlive}
         terminalCount={terminalScrollback.length}
         onRearm={guardianState.blocked || autoTriggerBlocked.current ? handleRearm : undefined}
+        onArmToggle={handleArmToggle}
+        terminalExecuting={terminalExecuting}
       />
 
       {/* Collateral / Debt Cards - P2-4 responsive */}
@@ -1398,7 +1439,7 @@ export default function MonitorView({ onTrigger, autoTriggerBlocked }: MonitorVi
       {/* Agent Insights + Log Panel */}
       <div className="flex gap-4 flex-col md:flex-row items-stretch min-w-0">
         <div className="flex-1 min-w-0 shrink-0">
-          <AgentInsights position={position} listenerAlive={listenerAlive} loading={loading} />
+          <AgentInsights position={position} listenerAlive={listenerAlive} loading={loading} armed={guardianState.enabled} blocked={autoTriggerBlocked.current} />
         </div>
         <div className="flex-1 min-w-0 shrink-0">
           <LogPanel logs={logs} loading={loading} position={position} />

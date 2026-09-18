@@ -3,7 +3,8 @@ import type { MitigationEvent, MitigationStep } from "../types";
 import { LAX_CONFIG } from "../types";
 import { useExecutionPoller } from "../hooks/useExecutionPoller";
 import { rpcRequest } from "../utils/rpc";
-import { fmtTime, fmtDuration, fmtUSDC, statusIcon, statusColor, encodeAddress, encodeUint, FORK_GAS_NOTE, FORK_GAS_QUEUED } from "../utils/format";
+import { fmtTime, fmtDuration, fmtUSDC, statusIcon, statusColor, encodeAddress, encodeUint, FORK_GAS_NOTE } from "../utils/format";
+import { isLocalRpc, mergeSteps } from "../utils/mitigation-steps";
 import { POLL_INTERVAL_MS, encodeGetUserAccountData, decodeUint256Array } from "../hooks/usePositionPoller";
 
 function keeperHubApi(path: string): string {
@@ -29,38 +30,6 @@ function makeInitialSteps(): MitigationStep[] {
     startedAt: null,
     finishedAt: null,
   }));
-}
-
-function mergeSteps(base: MitigationStep[], polled: MitigationStep[] | null, localSteps: MitigationStep[] | null, executionId: string | null, localError: string | null): MitigationStep[] {
-  const byId = new Map((polled ?? []).map((step) => [step.stepId, step]));
-  const localById = new Map((localSteps ?? []).map((step) => [step.stepId, step]));
-
-  return base.map((step) => {
-    if (step.stepId === "start") {
-      if (localError && !executionId) {
-        return {
-          ...step,
-          status: "failed",
-          error: localError,
-          startedAt: step.startedAt ?? Date.now(),
-          finishedAt: Date.now(),
-        };
-      }
-      if (executionId) {
-        return {
-          ...step,
-          status: "success",
-          txHash: null,
-          gasUsed: FORK_GAS_QUEUED,
-          startedAt: step.startedAt ?? Date.now(),
-          finishedAt: step.finishedAt ?? Date.now(),
-        };
-      }
-      return { ...step, status: "running", startedAt: step.startedAt ?? Date.now() };
-    }
-
-    return localById.get(step.stepId) ?? byId.get(step.stepId) ?? step;
-  });
 }
 
 // ---- Step Card ----
@@ -225,10 +194,12 @@ interface MitigationViewProps {
 
 export default function MitigationView({ event, onComplete, onBack }: MitigationViewProps) {
   const [executionId, setExecutionId] = useState<string | null>(null);
+  const [webhookNote, setWebhookNote] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [localSteps, setLocalSteps] = useState<MitigationStep[] | null>(null);
   const localFinalRef = useRef<MitigationEvent | null>(null);
   const localDoneRef = useRef(false);
+  const localRunTokenRef = useRef<number | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const borrowerAddress = event.borrowerAddress ?? LAX_CONFIG.BORROWER_ADDRESS;
   const rpcUrl = event.rpcUrl ?? LAX_CONFIG.FORK_RPC;
@@ -301,8 +272,12 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
       const id = json.executionId ?? json.id ?? "";
       if (!id) throw new Error("No executionId in response");
       setExecutionId(id);
+      setWebhookNote(null);
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : String(err));
+      // Non-blocking: the KeeperHub run is the audit trail, the local fork
+      // repair below is the visible mitigation. A missing key or an
+      // undeployed edge proxy must not blank the dashboard.
+      setWebhookNote(err instanceof Error ? err.message : String(err));
     }
   }, [event, borrowerAddress, rpcUrl]);
 
@@ -314,9 +289,16 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
     }
   }, [triggerWorkflow]);
 
-  // Local Anvil execution steps after KeeperHub trigger
+  // Local Anvil execution steps — the visible repair. Runs for a local RPC
+  // independently of the KeeperHub trigger: if the webhook is unavailable (no
+  // key, undeployed edge proxy) or the relayer can't reach the fork, the user
+  // still watches approve → repay → verify complete on-chain here.
   useEffect(() => {
-    if (!executionId) return;
+    if (!isLocalRpc(rpcUrl)) return;
+    // Run at most once per attempt — the effect re-runs when the KeeperHub
+    // execution id arrives, which would otherwise double-fire the repay.
+    if (localRunTokenRef.current === retryNonce) return;
+    localRunTokenRef.current = retryNonce;
     let cancelled = false;
 
     async function executeLocal() {
@@ -565,7 +547,9 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
         <div className="text-xs text-secondary mt-1 flex items-center gap-3">
           <span>HF at trigger: {event.hfAtTrigger.toFixed(4)}</span>
           <span>·</span>
-          <span>Execution: {executionId ? executionId.slice(0, 12) + "..." : "pending"}</span>
+          <span>
+            Execution: {executionId ? executionId.slice(0, 12) + "..." : isLocalRpc(rpcUrl) ? "fork-local" : "pending"}
+          </span>
           <span>·</span>
           <ElapsedTimer startAt={startedAt.current} />
         </div>
@@ -578,6 +562,14 @@ export default function MitigationView({ event, onComplete, onBack }: Mitigation
       {displayError && (
         <div className="bg-red/10 border border-red p-2 text-xs text-red animate-slide-up break-words">
           {displayError}
+        </div>
+      )}
+
+      {/* KeeperHub trigger note — informational; the local repair still runs */}
+      {webhookNote && !displayError && (
+        <div className="bg-yellow/10 border border-yellow p-2 text-xs text-yellow animate-slide-up break-words">
+          KeeperHub run unavailable ({webhookNote}) — repairing this position on the fork.
+          Add <span className="font-mono">VITE_KEEPERHUB_WEBHOOK_KEY</span> for the audit trail.
         </div>
       )}
 

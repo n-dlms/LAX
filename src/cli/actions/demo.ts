@@ -55,7 +55,15 @@ async function shockWethPrice(shockPct: number): Promise<{ oldPrice: bigint; new
   const newPrice = (oldPrice * BigInt(Math.round(100 - shockPct))) / 100n;
   try {
     await setWethPrice(newPrice);
-    const verified = await readWethPrice();
+    // The verification read can race block settlement right after the write —
+    // in the narration this printed the pre-crash price on both sides of the
+    // arrow. Re-read (bounded) before reporting the price the user sees.
+    let verified = await readWethPrice();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (verified !== null && verified !== oldPrice) break;
+      await sleep(700);
+      verified = await readWethPrice();
+    }
     if (verified === null) return { error: "price set but verification read failed" };
     return { oldPrice, newPrice: verified };
   } catch (err) {
