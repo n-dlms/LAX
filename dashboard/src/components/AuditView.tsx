@@ -193,19 +193,34 @@ export default function AuditView({ event, onReset }: AuditViewProps) {
       <div className="bg-surface border border-bordercol p-4 animate-slide-up animate-stagger-2">
         <div className="text-sm text-secondary mb-3">Submission Proof</div>
         <div className="grid md:grid-cols-2 gap-3">
-          <a
-            href={LAX_CONFIG.KEEPERHUB_WORKFLOW_URL(LAX_CONFIG.WORKFLOW_ID)}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Opens the workflow's runs page on KeeperHub — the execution ID below is listed there"
-            className="border border-bordercol p-3 hover:border-cyan transition-colors"
-          >
-            <div className="text-[10px] text-secondary uppercase">KeeperHub Audit Trail</div>
-            <div className="text-xs text-cyan mt-1 font-mono break-all">
-              {event.executionId || "pending"}
+          {isForkRpc(event.rpcUrl) ? (
+            <div className="border border-bordercol p-3">
+              <div className="text-[10px] text-secondary uppercase">KeeperHub Audit Trail (local fork)</div>
+              <div className="text-xs text-cyan mt-1 font-mono break-all">
+                {event.executionId || "local"}
+              </div>
+              <div className="text-[10px] text-secondary mt-1">
+                Local fork execution — no public runs page. Public proof is the Sepolia workflow:{" "}
+                <a href={LAX_CONFIG.KEEPERHUB_WORKFLOW_URL(LAX_CONFIG.WORKFLOW_ID_SEPOLIA)} target="_blank" rel="noopener noreferrer" className="text-cyan underline">
+                  {LAX_CONFIG.WORKFLOW_ID_SEPOLIA}
+                </a>
+              </div>
             </div>
-            <div className="text-[10px] text-secondary mt-1">view on the workflow's runs page ↗</div>
-          </a>
+          ) : (
+            <a
+              href={LAX_CONFIG.KEEPERHUB_WORKFLOW_URL(LAX_CONFIG.WORKFLOW_ID_SEPOLIA)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Opens the workflow's runs page on KeeperHub — the execution ID below is listed there"
+              className="border border-bordercol p-3 hover:border-cyan transition-colors"
+            >
+              <div className="text-[10px] text-secondary uppercase">KeeperHub Audit Trail</div>
+              <div className="text-xs text-cyan mt-1 font-mono break-all">
+                {event.executionId || "pending"}
+              </div>
+              <div className="text-[10px] text-secondary mt-1">view on the workflow's runs page ↗</div>
+            </a>
+          )}
           {txHash ? (
             isForkRpc(event.rpcUrl) ? (
               // Local-fork txs only exist on the local chain — no explorer has
