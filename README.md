@@ -2,11 +2,11 @@
 
 # LAX: Liquidation Autopilot eXtended
 
-<img src="docs/assets/LAX1.png" alt="LAX" width="420" />
-
 Proactive Aave V3 liquidation defense built on [KeeperHub](https://app.keeperhub.com). LAX monitors health factor and restores collateralization before liquidation becomes profitable.
 
 Aave V3 positions become liquidatable when health factor drops below 1.0. Oracle updates can make a position liquidatable within a single block. LAX polls `getUserAccountData` continuously and, when health factor falls to the configured threshold, executes a KeeperHub workflow to repay debt deterministically.
+
+<img src="docs/assets/LAX1.png" alt="LAX" width="420" />
 
 [![tests](https://img.shields.io/badge/tests-518%20passing-brightgreen)](docs/VERIFIED-TESTING.md)
 [![typecheck](https://img.shields.io/badge/tsc-strict%20clean-blue)](https://www.typescriptlang.org/)
