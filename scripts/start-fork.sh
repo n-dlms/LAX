@@ -19,7 +19,7 @@ pkill anvil 2>/dev/null || true
 sleep 1
 
 echo "Booting Anvil fork of Base at block $FORK_BLOCK on port $PORT..."
-mkdir -p /tmp/lax-anvil-state
+mkdir -p /tmp/lax-anvil-state /tmp/lax-anvil-cache
 anvil \
   --fork-url "$RPC_URL" \
   --fork-block-number "$FORK_BLOCK" \
@@ -28,6 +28,8 @@ anvil \
   --port "$PORT" \
   --compute-units-per-second 600 \
   --state /tmp/lax-anvil-state \
+  --max-persisted-states 5 \
+  --cache-path /tmp/lax-anvil-cache \
   > "$LOG_FILE" 2>&1 &
 ANVIL_PID=$!
 
