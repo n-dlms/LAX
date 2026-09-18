@@ -6,8 +6,6 @@ Proactive Aave V3 liquidation defense built on [KeeperHub](https://app.keeperhub
 
 Aave V3 positions become liquidatable when health factor drops below 1.0. Oracle updates can make a position liquidatable within a single block. LAX polls `getUserAccountData` continuously and, when health factor falls to the configured threshold, executes a KeeperHub workflow to repay debt deterministically.
 
-<img src="docs/assets/LAX1.png" alt="LAX" width="420" />
-
 [![tests](https://img.shields.io/badge/tests-518%20passing-brightgreen)](docs/VERIFIED-TESTING.md)
 [![typecheck](https://img.shields.io/badge/tsc-strict%20clean-blue)](https://www.typescriptlang.org/)
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
@@ -86,6 +84,10 @@ One command to bring the demo up (idempotent, self-healing):
 ```
 
 Prerequisites: Node.js >= 20, Foundry (anvil/cast), KeeperHub API key (`kh_*` and `wfb_*`), Python 3. See [docs/SETUP.md](docs/SETUP.md) for full instructions.
+
+<p align="center">
+  <img src="docs/assets/LAX1.png" alt="LAX" width="420" />
+</p>
 
 ## What is included
 
