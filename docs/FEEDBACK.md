@@ -1,6 +1,6 @@
 # KeeperHub SDK + Platform Feedback
 
-**Project**: LAX. Liquidation Autopilot
+**Project**: LAX: Liquidation Autopilot
 **Submitted for**: Onboarding DX Bounty
 **Integration depth**: MCP + first-party wallet + Aave V3 plugin + webhook workflow
 **Build time**: ~3 weeks (Phase 0-3)
@@ -11,8 +11,8 @@
 
 We built LAX on KeeperHub for the Agents Onchain hackathon. The integration surface was deep: MCP remote server, `@keeperhub/wallet` v0.1.15, Aave V3 plugin, webhook-triggered workflows, and gas sponsorship. Most things worked. The friction points below fall into two categories:
 
-1. **Documentation gaps** (6 items), features that exist but aren't documented clearly
-2. **API surprises** (3 items), endpoints that behave differently than expected
+1. **Documentation gaps** (6 items): features that exist but are not documented clearly
+2. **API surprises** (3 items): endpoints that behave differently than expected
 
 No SDK-breaking bugs were found. Every friction below has a known workaround. The purpose of this report is to make the next developer's path faster.
 
@@ -155,7 +155,7 @@ live fire (see `docs/VERIFIED-TESTING.md` §1); the endpoint needs no further wo
 ### M4: No workflow versioning
 
 **Where**: KeeperHub workflow management
-**Issue**: Editing a live workflow is risky, there is no versioning or draft/publish model. A single URL update can take down production. The GitHub issue `keeperhub/cli#59` requests this feature.
+**Issue**: Editing a live workflow is risky. There is no versioning or draft/publish model, so a single URL update can take down production. The GitHub issue `keeperhub/cli#59` requests this feature.
 **Suggested fix**: Versioned workflows with the ability to preview a new version before publishing. See existing community request at https://github.com/KeeperHub/cli/issues/59.
 
 ---
