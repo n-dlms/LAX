@@ -3,6 +3,9 @@ import { simulateApprove, simulateFullMitigation } from '../src/preflight-simula
 import { runCritique } from '../src/critique-agent.js'
 import { hfToBigint } from '../src/repay-math.js'
 
+// Network-dependent tests need time for RPC_UNREACHABLE (5s helper timeout)
+const NETWORK_TIMEOUT = 10_000
+
 const RPC_URL = 'http://127.0.0.1:18545'
 const WALLET = '0x8Bb7870242e75132Fd62265cA8ABF771d49C821C'
 const BORROWER = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
@@ -10,7 +13,7 @@ const TOKEN = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 const POOL = '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5'
 
 describe('shell integration boundaries', () => {
-  it('attempts connection for non-local RPC URL (no fork ceiling)', () => {
+  it('attempts connection for non-local RPC URL (no fork ceiling)', { timeout: NETWORK_TIMEOUT }, () => {
     // The pre-validation gate is gone; a valid RPC is actually tried (this may
     // succeed if the endpoint is reachable). We only assert it is not short-circuited.
     const result = simulateApprove(TOKEN, POOL, 1000n, 'https://mainnet.base.org', WALLET)
@@ -19,13 +22,13 @@ describe('shell integration boundaries', () => {
     expect(['APPROVE', 'REPAY', 'FULL']).toContain(result.stage)
   })
 
-  it('attempts connection for https URL in simulateFullMitigation', () => {
+  it('attempts connection for https URL in simulateFullMitigation', { timeout: NETWORK_TIMEOUT }, () => {
     const result = simulateFullMitigation(BORROWER, TOKEN, 1000n, 'https://api.example.com', WALLET)
     expect(result.success).toBe(false)
     expect(result.revertReason).not.toBe('INVALID_RPC_URL')
   })
 
-  it('detects non-local IP in simulation context', () => {
+  it('detects non-local IP in simulation context', { timeout: NETWORK_TIMEOUT }, () => {
     const critique = runCritique({
       currentHf: hfToBigint(1.04),
       targetHf: hfToBigint(1.10),
@@ -65,7 +68,7 @@ describe('shell integration boundaries', () => {
     expect(result.revertReason).not.toBe('FORK_REQUIRED')
   })
 
-  it('treats query params as part of the URL (deterministic: port 1 never answers)', () => {
+  it('treats query params as part of the URL (deterministic: port 1 never answers)', { timeout: NETWORK_TIMEOUT }, () => {
     // Previously pointed at the fork port, which made this pass/fail depending
     // on whether a local anvil was running. Port 1 refuses connections, so the
     // assertion is environment-independent: the URL itself is valid, the
@@ -101,7 +104,7 @@ describe('shell integration boundaries', () => {
     expect(result.revertReason).toBe('INVALID_RPC_URL')
   })
 
-  it('attempts connection for http://192.168.1.1:18545 (private IP, now allowed)', () => {
+  it('attempts connection for http://192.168.1.1:18545 (private IP, now allowed)', { timeout: NETWORK_TIMEOUT }, () => {
     const result = simulateApprove(TOKEN, POOL, 1000n, 'http://192.168.1.1:18545', WALLET)
     expect(result.success).toBe(false)
     expect(result.revertReason).not.toBe('INVALID_RPC_URL')
@@ -125,7 +128,7 @@ describe('shell integration boundaries', () => {
     expect(critique.passed).toBe(false)
   })
 
-  it('runCritique with unreachable 0.0.0.0 rpc fails (deterministic port)', () => {
+  it('runCritique with unreachable 0.0.0.0 rpc fails (deterministic port)', { timeout: NETWORK_TIMEOUT }, () => {
     const critique = runCritique({
       currentHf: hfToBigint(1.04),
       targetHf: hfToBigint(1.10),
