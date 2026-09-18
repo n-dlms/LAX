@@ -13,6 +13,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm ci --prefix dashboard
       - run: npm run lint
       - run: npm run lint:dashboard
       - run: npm test
