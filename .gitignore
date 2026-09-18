@@ -29,3 +29,6 @@ fork-state.json
 
 # editor artifact
 .commandcode/
+
+# Local-only demo notes (private recording script, never push)
+.demo-notes.md
